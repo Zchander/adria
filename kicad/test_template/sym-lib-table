@@ -1,6 +1,0 @@
-(sym_lib_table
-  (lib (name 65xx)(type Legacy)(uri ${KIPRJMOD}/library/65xx.lib)(options "")(descr ""))
-  (lib (name ATF22v10)(type Legacy)(uri ${KIPRJMOD}/library/ATF22v10.lib)(options "")(descr ""))
-  (lib (name DS1813-10)(type Legacy)(uri ${KIPRJMOD}/library/DS1813-10.lib)(options "")(descr ""))
-  (lib (name MAX233CPP_G36)(type Legacy)(uri ${KIPRJMOD}/library/MAX233CPP_G36.lib)(options "")(descr ""))
-)
