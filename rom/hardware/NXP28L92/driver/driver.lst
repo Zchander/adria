@@ -1,0 +1,1192 @@
+ca65 V2.18 - Git 39c0abed5
+Main file   : ../NXP28L92.asm
+Current file: ../NXP28L92.asm
+
+000000r 1               ;===============================================================================
+000000r 1               ;   A D R I A   - Philips/NXP 28L9x Driver skeleton
+000000r 1               ;
+000000r 1               ; 	This source file is the base skeleton for the driver for the
+000000r 1               ;	Philips/NXP 28L9x IC.
+000000r 1               ;
+000000r 1               ;	This driver is (largely) based on the driver by
+000000r 1               ;	BDD (sbc.bcstechnology.net) and his documents "28l91 Driving" and
+000000r 1               ;	"28L92 Interfacing".
+000000r 1               ;	(Most of this driver is copied from/based on his work!)
+000000r 1               ;
+000000r 1               ;	Written for use with the CC65 assembler.
+000000r 1               ;
+000000r 1               ;	Version history:
+000000r 1               ;		26 jan 2021 	- Inital version
+000000r 1               ;		18 feb 2021 	- Userland driver seems to work, migrating to
+000000r 1               ;				  ROM based driver
+000000r 1               ;				- For now, channel B ISR is INCOMPLETE
+000000r 1               ;				- Added blocking input routine for channel A
+000000r 1               ;-------------------------------------------------------------------------------
+000000r 1               ; For the userland driver we use the unique functions names when accessing the
+000000r 1               ; frontend of the driver (e.g. routines available to users).
+000000r 1               ; for the ROM based driver, we the more "generic" names. This is to avoid major
+000000r 1               ; rewrites.
+000000r 1               ; Also the userland driver was/is loaded at $00/4000. The ROM based driver will
+000000r 1               ; be loaded at $00/FB00.
+000000r 1               ;
+000000r 1               ; ----------------------
+000000r 1               ; Routine name "translation" table
+000000r 1               ; ----------------------
+000000r 1               ; Userland		ROM
+000000r 1               ; ______________	________________
+000000r 1               ; nx_init		uart_init	- Initialize driver
+000000r 1               ; nx_sioget_a		uart_scan	- Non blocking input (scan)
+000000r 1               ; nx_sioget_a_block	uart_input	- Blocking input (non-scan!)
+000000r 1               ; nx_sioput_a		uart_output	- Output
+000000r 1               ; nx_sioget_b
+000000r 1               ; nx_sioput_b
+000000r 1               ;
+000000r 1               ; Userland or ROM driver
+000000r 1               ;-----------------------
+000000r 1               ; If we want to assemble the userland driver, set NX_USERDRIVER to 1, otherwise
+000000r 1               ; set to =
+000000r 1               NX_USERDRIVER		= 1
+000000r 1               ;===============================================================================
+000000r 1               ;	Linker directives
+000000r 1               ;---------------------------------------
+000000r 1               	.p816
+000000r 1               	.listbytes	unlimited
+000000r 1               	.smart 		+
+000000r 1               ;
+000000r 1               .if	NX_USERDRIVER 	= 1
+000000r 1               	UART_DRIVER	= $4000		; Load address for userland
+000000r 1               .endif
+000000r 1               ;
+000000r 1               	.org		UART_DRIVER
+004000  1               ;
+004000  1               ;---------------------------------------
+004000  1               ;	Includes to sub-modules
+004000  1               ;---------------------------------------
+004000  1               	.include	"macro.asm"
+004000  2               ;===============================================================================
+004000  2               ;   A D R I A   - Philips/NXP 28L9x Macro file
+004000  2               ;
+004000  2               ; 	This source file holds the global macro definitions to ease the
+004000  2               ;	development of the drivre for the Philips/NXP 28L9x IC.
+004000  2               ;
+004000  2               ;	Version history:
+004000  2               ;		26 jan 2021 	- Inital version
+004000  2               ;		18 feb 2021 	- Userland driver seems to work, migrating to
+004000  2               ;				  ROM based driver
+004000  2               ;===============================================================================
+004000  2               ; 	Version information
+004000  2               ;---------------------------------------
+004000  2               	.macro	nx_9x_version
+004000  2               	.byte	'0'			; Major
+004000  2               	.byte	'.'
+004000  2               	.byte	'2'			; Minor
+004000  2               	.byte	'.'
+004000  2               	.byte	'0'			; Revision
+004000  2               	.endmacro
+004000  2               ;
+004000  2               .if	NX_USERDRIVER
+004000  2               ;
+004000  2               ;---------------------------------------
+004000  2               ;	Register width selection
+004000  2               ;---------------------------------------
+004000  2               	.macro	longi			; Set .X and .Y to 16-bit
+004000  2               	rep	#%00010000
+004000  2               	.i16
+004000  2               	.endmacro
+004000  2               ;
+004000  2               	.macro	shorti			; Set .X and .Y to 8-bit
+004000  2               	sep	#%00010000
+004000  2               	.i8
+004000  2               	.endmacro
+004000  2               ;
+004000  2               	.macro	longa			; Set .A to 16-bit
+004000  2               	rep	#%00100000
+004000  2               	.a16
+004000  2               	.endmacro
+004000  2               ;
+004000  2               	.macro	shorta			; Set .A to 8-bit
+004000  2               	sep	#%00100000
+004000  2               	.a8
+004000  2               	.endmacro
+004000  2               ;
+004000  2               	.macro	longr			; Set all registers to 16-bit
+004000  2               	rep	#%00110000		; Set 16-bit .A, .X and .Y
+004000  2               	.a16
+004000  2               	.i16
+004000  2               	.endmacro
+004000  2               ;
+004000  2               	.macro	shortr			; Set all registers to 8-bit
+004000  2               	sep	#%00110000		; Set 8-bit .A, .X and .Y
+004000  2               	.a8
+004000  2               	.i8
+004000  2               	.endmacro
+004000  2               .endif
+004000  2               
+004000  1               	.include	"global.asm"
+004000  2               ;===============================================================================
+004000  2               ;   A D R I A   - Philips/NXP 28L9x Global definitions file
+004000  2               ;
+004000  2               ; 	This source file holds the global definitions for the drivre for the
+004000  2               ;	Philips/NXP 28L9x IC.
+004000  2               ;
+004000  2               ;	Version history:
+004000  2               ;		26 jan 2021 	- Initial version
+004000  2               ;		18 feb 2021 	- Userland driver seems to work, migrating to
+004000  2               ;				  ROM based driver
+004000  2               ;===============================================================================
+004000  2               ; GENERIC
+004000  2               ;=======================================
+004000  2               ; Size data types
+004000  2               ;---------------------------------------
+004000  2               .if NX_USERDRIVER
+004000  2               s_bi_bit	= 1			;  1 bit
+004000  2               s_bi_nibble	= 4			;  4 bit, nibble (or nybble)
+004000  2               s_bi_nybble	= s_bi_nibble
+004000  2               s_bi_byte	= 8			;  8 bit, 1 byte
+004000  2               ;
+004000  2               s_byte		= 1			;  8 bit, 1 byte
+004000  2               s_word		= 2			; 16 bit, 2 bytes
+004000  2               s_xword		= 3			; 24 bit, 3 bytes
+004000  2               s_dword		= 4			; 32 bit, 4 bytes
+004000  2               ;
+004000  2               s_ptr		= s_word		; Pointer	, 16 bit, 2 bytes
+004000  2               s_dptr		= s_word * 2		; Double pointer, 32 bit, 4 bytes
+004000  2               s_rampage	= $0100			; 65xx size of RAM page (256 bytes)
+004000  2               s_bank		= $ffff			; 65816 size of RAM bank (65536 bytes)
+004000  2               ;
+004000  2               s_mpudbrx	= s_byte		; Size of Data Bank register
+004000  2               s_mpudpx	= s_word		; Size of Direct Page register
+004000  2               s_mpupbx	= s_byte		; Size of Program Bank register
+004000  2               s_mpupcx	= s_word		; Size of Program Counter register
+004000  2               s_mpuspx	= s_word		; Size of Stack Pointer register
+004000  2               s_mpusrx	= s_byte		; Size of Processor Status register
+004000  2               ;
+004000  2               ;---------------------------------------
+004000  2               ; Flags
+004000  2               ;---------------------------------------
+004000  2               ; 	Status Register
+004000  2               ;		   +----------> 1 = result = negative
+004000  2               ;		   |+---------> 1 = sign overflow
+004000  2               ;		   ||           1 = 8 bit .A & memory
+004000  2               ;		   ||+--------> 0 = 16 bit .A & memory
+004000  2               ;		   |||          1 = 8 bit index
+004000  2               ;		   |||+-------> 0 = 16 bit index
+004000  2               ;		   ||||         1 = decimal arithmetic mode
+004000  2               ;		   ||||+------> 0 = binary arithmetic mode
+004000  2               ;		   |||||+-----> 1 = IRQ disabled
+004000  2               ;		   ||||||+----> 1 = result = zero
+004000  2               ;		   |||||||+---> 1 = carry set/generated
+004000  2               ;		   ||||||||
+004000  2               ;		   NVmxDIZC
+004000  2               ;---------------
+004000  2               sr_carry	= %0000001		; C => carry
+004000  2               sr_zero		= sr_carry 	<< 1	; Z => zero
+004000  2               sr_irq		= sr_zero 	<< 1	; I => IRQ
+004000  2               sr_bdm		= sr_irq 	<< 1	; D => decimal mode
+004000  2               sr_ixw		= sr_bdm	<< 1	; x => index register width
+004000  2               sr_amw		= sr_ixw	<< 1	; m => memory and .A width
+004000  2               sr_ovl		= sr_amw	<< 1	; V => overflow
+004000  2               sr_neg		= sr_ovl	<< 1	; N => negative
+004000  2               ;---------------
+004000  2               ; 	Status Register - Inverted
+004000  2               ;---------------
+004000  2               sr_carry_i	= sr_carry ^ %11111111	; C
+004000  2               sr_zero_i	= sr_zero  ^ %11111111	; Z
+004000  2               sr_irq_i	= sr_irq   ^ %11111111	; I
+004000  2               sr_bdm_i	= sr_bdm   ^ %11111111	; D
+004000  2               sr_ixw_i	= sr_ixw   ^ %11111111	; x
+004000  2               sr_amw_i	= sr_amw   ^ %11111111	; m
+004000  2               sr_ovl_i	= sr_ovl   ^ %11111111	; V
+004000  2               sr_neg_i	= sr_neg   ^ %11111111	; N
+004000  2               ;
+004000  2               ;---------------------------------------
+004000  2               ; Constants
+004000  2               ;---------------------------------------
+004000  2               BELL		= $07			; <Bell>
+004000  2               BS		= $08			; <Backspace>
+004000  2               HTAB		= $09			; <Tab>
+004000  2               LF		= $0A			; <LF>
+004000  2               CR		= $0D			; <CR>
+004000  2               SPACE		= $20			; <Space>
+004000  2               DEL		= $7F			; <Del>
+004000  2               ;
+004000  2               ;---------------------------------------
+004000  2               ; Pointers/addresses
+004000  2               ;---------------------------------------
+004000  2               ;	SUPERMON816
+004000  2               ;---------------
+004000  2               DPYHEX		= $DFAD			; Display contents of .A as byte
+004000  2               NEWLINE		= $DFC4			; Go to new line
+004000  2               ;---------------
+004000  2               ;	ROM
+004000  2               ;---------------
+004000  2               VECTOR_INT	= $02D8			; /IRQ jump vector
+004000  2               CHKSUM_INT	= $02DA			; /IRQ jump vector checksum
+004000  2               CHAR_OUT	= $FD0C			; Current Character Out jump routine
+004000  2               ;
+004000  2               .endif
+004000  2               ;
+004000  2               ;=======================================
+004000  2               ; 	DRIVER
+004000  2               ;=======================================
+004000  2               ; Size data types
+004000  2               ;---------------------------------------
+004000  2               s_uptime	= s_dword		; Uptime ticker	, 32 bit, 4 bytes
+004000  2               ;
+004000  2               s_e32_buf	= s_rampage / 2		; Size of a UART I/O buffer
+004000  2               s_e32_space	= s_e32_buf * n_e32_buf	; Total space reserved for UART I/O
+004000  2               					; buffers
+004000  2               ;
+004000  2               ;---------------------------------------
+004000  2               ; Flags
+004000  2               ;---------------------------------------
+004000  2               ;	Channel TxD status
+004000  2               ; 	Only A and B are used, rest is
+004000  2               ;	already defined for future use
+004000  2               e32_tx_sta	= %00000001		; Channel A TxD status
+004000  2               e32_tx_stb	= e32_tx_sta	<< 1	; Channel B TxD status
+004000  2               e32_tx_stc	= e32_tx_stb	<< 1	; Channel C TxD status
+004000  2               e32_tx_std	= e32_tx_stc	<< 1	; Channel D TxD status
+004000  2               e32_tx_ste	= e32_tx_std	<< 1	; Channel E TxD status
+004000  2               e32_tx_stf	= e32_tx_ste	<< 1	; Channel F TxD status
+004000  2               e32_tx_stg	= e32_tx_stf	<< 1	; Channel G TxD status
+004000  2               e32_tx_sth	= e32_tx_stg	<< 1	; Channel H TxD status
+004000  2               ;
+004000  2               ;buf_idx_mask	= s_e32_buf ^ %01111111	; Buffer index wrap mask
+004000  2               buf_idx_mask	= s_e32_buf - 1		; Buffer index wrap mask (as per BDD)
+004000  2               ;
+004000  2               ; 28L9x driver status flags
+004000  2               nx_driver_init	= %10000000		; Driver initialization status
+004000  2               nx_txa_dis	= %01000000		; TxD channel A flag
+004000  2               nx_txb_dis	= %00100000		; TxD channel B flag
+004000  2               ;
+004000  2               ;	SR masks
+004000  2               msk_sr_rx_rdy	= %00000001		; RHR not empty mask
+004000  2               msk_sr_rx_full	= %00000010		; RHR full empty
+004000  2               msk_sr_tx_rdy	= %00000100		; THR not full mask
+004000  2               msk_sr_tx_empty	= %00001000		; THR empty mask
+004000  2               ;
+004000  2               ;	IRQ masks
+004000  2               ;---------------
+004000  2               msk_irq_txa	= %00000001		; Channel A TxRDY IRQ mask
+004000  2               msk_irq_rxa	= %00000010		; Channel A RxRDY IRQ mask
+004000  2               msk_irq_ct	= %00001000		; Counter Ready Mask
+004000  2               msk_irq_txb	= %00010000		; Channel B TxRDY IRQ mask
+004000  2               msk_irq_rxb	= %00100000		; Channel B RxRDY IRQ mask
+004000  2               ;
+004000  2               ;---------------------------------------
+004000  2               ; Constants
+004000  2               ;---------------------------------------
+004000  2               n_chan_9x	= 2			; Number of channels
+004000  2               n_reg_9x	= 8			; Number of registers per channel
+004000  2               n_tot_reg_9x	= n_chan_9x * n_reg_9x	; Total number of registers
+004000  2               ;
+004000  2               nx_q_size	= s_rampage / 2		; Size of a ring buffer (127)
+004000  2               nx_q_base	= $2000			; For now we define our queues at $2000
+004000  2               nx_rx_qa	= nx_q_base		; RxD queue channel A
+004000  2               nx_tx_qa	= nx_rx_qa + nx_q_size	; TxD queue channel A
+004000  2               nx_rx_qb	= nx_tx_qa + nx_q_size	; RxD queue channel B
+004000  2               nx_tx_qb	= nx_rx_qb + nx_q_size	; TxD queue channel B
+004000  2               ;
+004000  2               n_e32_buf	= 4			; # of UART I/O buffers
+004000  2               ;
+004000  2               x1_freq		= 3686400		; Clock freq of X1 in Hz
+004000  2               nx_ct_scale	= x1_freq / 2		; C/T scaled clock
+004000  2               hz		= 100			; Frequency of C/T IRQs (in Hz)
+004000  2               ;
+004000  2               ;---------------------------------------
+004000  2               ; Pointers/addresses
+004000  2               ;---------------------------------------
+004000  2               ; 	Zeropage / Direct Page
+004000  2               ;---------------
+004000  2               nx_zeropage	= $20			; We use ZP from $20
+004000  2               nx_jiffycnt	= nx_zeropage		; Jiffy counter
+004000  2               ;---------------
+004000  2               ;	Uptime is little endian!
+004000  2               ;---------------
+004000  2               nx_uptimecnt	= nx_jiffycnt  + s_byte	; 32 bit uptime counter
+004000  2               ;
+004000  2               ;	RxD and TxD GET and PUT indexes channel A
+004000  2               nx_rx_get_a	= nx_uptimecnt + s_dword;
+004000  2               nx_tx_get_a	= nx_rx_get_a  + s_byte	;
+004000  2               nx_rx_put_a	= nx_tx_get_a  + s_byte	;
+004000  2               nx_tx_put_a	= nx_rx_put_a  + s_byte	;
+004000  2               ;
+004000  2               ;	RxD and TxD GET and PUT indexes channel B
+004000  2               nx_rx_get_b	= nx_tx_put_a  + s_byte	;
+004000  2               nx_tx_get_b	= nx_rx_get_b  + s_byte	;
+004000  2               nx_rx_put_b	= nx_tx_get_b  + s_byte	;
+004000  2               nx_tx_put_b	= nx_rx_put_b  + s_byte	;
+004000  2               ;
+004000  2               nx_tx_status	= nx_tx_put_b + s_byte	; Driver TxD status register
+004000  2               ;
+004000  2               rom_irq		= nx_tx_status + s_byte	; Store original IRQ jump vector!
+004000  2               ;---------------
+004000  2               ; 	I/O
+004000  2               ;---------------
+004000  2               .if	NX_USERDRIVER
+004000  2               NX_IOBASE	= $C400			; NXP 28L92 is based in slot #4
+004000  2               					; (userland) driver
+004000  2               .else
+004000  2               ;
+004000  2               NX_IOBASE	= UART_IOBASE
+004000  2               .endif
+004000  2               ;
+004000  2               ;---------------------------------------
+004000  2               ; Data Registers
+004000  2               ;---------------------------------------
+004000  2               ;	Offsets to IO_BASE
+004000  2               ;---------------
+004000  2               dr_mra		= %0000			; Mode Register A
+004000  2               dr_sra		= %0001			; Status Register a
+004000  2               dr_rxfifoa	= %0011			; Rx Holding Register A
+004000  2               dr_ipcr		= %0100			; Input Port Change Register
+004000  2               dr_isr		= %0101			; Interrupt Status Register
+004000  2               dr_ctu		= %0110			; Counter/Timer (MSB)
+004000  2               dr_ctl		= %0111			; Counter/Timer (LSB)
+004000  2               dr_mrb		= %1000			; Mode Register B
+004000  2               dr_srb		= %1001			; Status Register B
+004000  2               dr_rxfifob	= %1011			; Rx Holding Register B
+004000  2               dr_misc		= %1100			; Miscellaneous Register (Intel mode)
+004000  2               dr_ipr		= %1101			; Input Port Register
+004000  2               dr_cnt_start	= %1110			; Start counter command
+004000  2               dr_cnt_stop	= %1111			; Stop counter command
+004000  2               ; During write
+004000  2               ;dr_mra	= %0000				; Mode Register A (Same when Reading)
+004000  2               dr_csra		= %0001			; Clock Select Register A
+004000  2               dr_cra		= %0010			; Command Register A
+004000  2               dr_txfifoa	= %0011			; Tx Holding Register A
+004000  2               dr_acr		= %0100			; Auxiliary Control Register
+004000  2               dr_imr		= %0101			; Interrupt Mask Register
+004000  2               dr_ctpu		= %0110			; Counter/Timer Upper Preset Reg (MSB)
+004000  2               dr_ctpl		= %0111			; Counter/Timer Lower Preset Reg (LSB)
+004000  2               ;dr_mrb		= %1000			; Mode Register B (Same when Reading)
+004000  2               dr_csrb		= %1001			; Clock Select Register B
+004000  2               dr_crb		= %1010			; Command Register B
+004000  2               dr_txfifob	= %1011			; Tx Holding Register B
+004000  2               ;dr_misc	= %1100			; Miscellaneous Register (Intel mode)
+004000  2               dr_opcr		= %1101			; Output Port Configuration Register
+004000  2               dr_sopr		= %1110			; Set Output Port Bits Command
+004000  2               dr_ropr		= %1111			; Reset Output Port Bits Command
+004000  2               ;---------------------------------------
+004000  2               ; 29L9x Registers (explained)
+004000  2               ;---------------------------------------
+004000  2               ;	MISC - Miscellaneous Register (Intel mode)
+004000  2               ;
+004000  2               ; We only explain the possible flags
+004000  2               ;
+004000  2               nx_misc_def	= %00000000
+004000  2               ;		   xxxxxxxx
+004000  2               ;		   ||||||||
+004000  2               ;		   |||+++++---> z: Unused
+004000  2               ;		   |||
+004000  2               ;		   ||+--------> 1: Disable transmitter channel B
+004000  2               ;		   |+---------> 1: Disable transmitter channel A
+004000  2               ;		   +----------> 1: Driver initialized
+004000  2               ;---------------
+004000  2               ; 	ACR - Auxiliary Control Register
+004000  2               ;---------------
+004000  2               ;nx_acr_def	= %01100000
+004000  2               nx_acr_def	= %11100000
+004000  2               ;		   xxxxxxxx
+004000  2               ;		   ||||||||
+004000  2               ;		   |||||||+---> 1: enable IP0 IRQ
+004000  2               ;		   ||||||+----> 1: enable IP1 IRQ
+004000  2               ;		   |||||+-----> 1: enable IP2 IRQ
+004000  2               ;		   ||||+------> 1: enable IP3 IRQ
+004000  2               ;		   |+++-------> C/T setup:
+004000  2               ;		   |
+004000  2               ;		   |            654  Mode     Source
+004000  2               ;		   |            -------------------------------
+004000  2               ;		   |            000  counter  IP2
+004000  2               ;		   |            001  counter  TxD Ch 1 1X clock
+004000  2               ;		   |            010  counter  TxD Ch 2 1X clock
+004000  2               ;		   |            011  counter  Xtal/16
+004000  2               ;		   |            100  timer    IP2
+004000  2               ;		   |            101  timer    IP2/16
+004000  2               ;		   |            110  timer    Xtal
+004000  2               ;		   |            111  timer    Xtal/16
+004000  2               ;		   |            -------------------------------
+004000  2               ;		   |
+004000  2               ;		   +----------> 0: select BRG set #1 (38.4k max)
+004000  2               ;		                1: select BRG set #2 (19.2k max)
+004000  2               ;
+004000  2               ;---------------
+004000  2               ; 	CR - Command Register
+004000  2               ;---------------
+004000  2               nx_cr_rx_ena	= %00000001		; Enable receiver
+004000  2               nx_cr_rx_dis	= %00000010		; Disable receiver
+004000  2               ;
+004000  2               nx_cr_tx_ena	= %00000100		; Enable transmitter
+004000  2               nx_cr_tx_dis	= %00001000		; Disable transmitter
+004000  2               ;
+004000  2               nx_cr_mr1	= %00010000		; Select MR1
+004000  2               ;
+004000  2               nx_cr_rx_res	= %00100000		; Reset receiver
+004000  2               nx_cr_tx_res	= %00110000		; Reset transmitter
+004000  2               nx_cr_err_res	= %01000000		; Reset error status
+004000  2               nx_cr_bir_res	= %01010000		; Reset Received Break Change IRQ
+004000  2               ;
+004000  2               nx_cr_brk_sta	= %01100000		; Start break
+004000  2               nx_cr_brk_stp	= %01110000		; Stop break
+004000  2               ;
+004000  2               nx_cr_rts_ass	= %10000000		; Assert RTS
+004000  2               nx_cr_rts_dea	= %10010000		; Deassert RTS
+004000  2               ;
+004000  2               nx_cr_tmr_mod	= %10100000		; Select C/T timer mode
+004000  2               ;
+004000  2               nx_cr_mr0	= %10110000		; Select MR0
+004000  2               ;
+004000  2               nx_cr_cnt_mod	= %11000000		; Select C/T counter mode
+004000  2               ;
+004000  2               nx_cr_pwr_dwn	= %11100000		; Power down mode	(Port A only)
+004000  2               nx_cr_pwr_up	= %11110000		; Normal power mode	(Port A only)
+004000  2               ;
+004000  2               ;	Combined CR commands
+004000  2               nx_cr_rxtx_ena	= nx_cr_rx_ena | nx_cr_tx_ena
+004000  2               nx_cr_rxtx_dis	= nx_cr_rx_dis | nx_cr_tx_dis
+004000  2               ;
+004000  2               ;---------------
+004000  2               ; 	CSR - Clock Select Register
+004000  2               ;---------------
+004000  2               nx_csr		= %11001100		; RxD and TxD at 38k4 baud
+004000  2               					; MR[0] = 0 & ACR[7] = 0
+004000  2               ;---------------
+004000  2               ; 	CT - Counter / Timer
+004000  2               ;---------------
+004000  2               nx_cnt_lo	= <(nx_ct_scale/hz)	; Underflows/sec LSB
+004000  2               nx_cnt_hi	= >(nx_ct_scale/hz)	; Underflows/sec MSB
+004000  2               ;
+004000  2               ;---------------
+004000  2               ; 	IMR - Interrupt Mask Register
+004000  2               ;---------------
+004000  2               					; Enable channel A RxD and TxD IRQs
+004000  2               nx_irq_a	= msk_irq_txa | msk_irq_rxa
+004000  2               					; Enable channel B RxD and TxD IRQs
+004000  2               nx_irq_b	= msk_irq_txb | msk_irq_rxb
+004000  2               					; Set IRQ Sources (Port A, B and C/T)
+004000  2               nx_irq_msk	= nx_irq_a | nx_irq_b | msk_irq_ct
+004000  2               ;
+004000  2               ;---------------
+004000  2               ; 	MR0 - Mode 0 Register
+004000  2               ;---------------
+004000  2               nx_mr0		= %11001000
+004000  2               ;		   ||||||||
+004000  2               ;		   |||||+++----> Baud rate: Normal mode
+004000  2               ;		   ||||+-------> 16-deep FIFO
+004000  2               ;		   ||++--------> TxD interrupts only when FIFO is empty
+004000  2               ;		   |+----------> RxD interrupts only when FIFO is full
+004000  2               ;		   |             (also see MR1[6])
+004000  2               ;		   +-----------> Enable RxD watchdog timer
+004000  2               ;
+004000  2               ;---------------
+004000  2               ; 	MR1 - Mode 1 Register
+004000  2               ;---------------
+004000  2               nx_mr1		= %11010011
+004000  2               ;		   ||||||||
+004000  2               ;		   ||||||++----> 8 bit character size
+004000  2               ;		   |||||+------> Parity type (ignored)
+004000  2               ;		   |||++-------> No parity generated or checked
+004000  2               ;		   ||+---------> Character error mode
+004000  2               ;		   |+----------> RxD interrupts only when FIFO is full
+004000  2               ;		   |		 (See also MR0[6]
+004000  2               ;		   +-----------> RxD controls RTS
+004000  2               ;
+004000  2               ;---------------
+004000  2               ; 	MR2 - Mode 2 Register
+004000  2               ;---------------
+004000  2               nx_mr2		= %00010111		; Normal mode, auto RTS
+004000  2               ;		   ||||||||
+004000  2               ;		   ||||++++---> stop bit length
+004000  2               ;		   ||||
+004000  2               ;		   |||+-------> TxD CTS mode:  	 0: off
+004000  2               ;		   |||                         	 1: on
+004000  2               ;		   ||+--------> TxD RTS mode:  	 0: off
+004000  2               ;		   ||                          	 1: on
+004000  2               ;		   ++---------> channel mode: 	00: normal
+004000  2               ;	           		                01: auto echo
+004000  2               ;	                           		10: local loop
+004000  2               ;	                           		11: remote loop
+004000  2               ;
+004000  2               ;---------------
+004000  2               ; 	OPCR - Output Port Configuration Register
+004000  2               ;---------------
+004000  2               nx_opcr_def	= %11110000		; OP4-7 as IRQ outputs
+004000  2               
+004000  2               
+004000  2               
+004000  1               	.include	"frontend.asm"
+004000  2               ;===============================================================================
+004000  2               ;   A D R I A   - Philips/NXP 28L9x Front-end Test routine(s)
+004000  2               ;
+004000  2               ; 	This source file holds the front-end routine(s) for the
+004000  2               ;	Philips/NXP 28L9x IC.
+004000  2               ;
+004000  2               ;	Version history:
+004000  2               ;		26 jan 2021 	- Inital version
+004000  2               ;		18 feb 2021 	- Userland driver seems to work, migrating to
+004000  2               ;				  ROM based driver
+004000  2               ;===============================================================================
+004000  2               ; Process Receive Request
+004000  2               ;
+004000  2               ; Call the subroutine and the routine will try to "get" a datum from the
+004000  2               ; corresponding RxQ. If this succeeds, the routine will return:
+004000  2               ;	.A	- valid datum
+004000  2               ;	carry	- clear
+004000  2               ;
+004000  2               ; If no datum is present in the RxQ, the routine will return:
+004000  2               ;	.A	- unchanged
+004000  2               ;	carry	- set
+004000  2               ;
+004000  2               ; NOTE: Carry will also be returned set, if the driver hasn't been initialized,
+004000  2               ;	yet...
+004000  2               ;-------------------------------------------------------------------------------
+004000  2               ; nx_sioget_a - Process datum from channel A RxQ
+004000  2               ;-----------------------
+004000  2               uart_scan:
+004000  2               nx_sioget_a:
+004000  2  E2 30        	shortr				; Make sure we are in 8-bit registers
+004002  2  38           	sec				; Default: assume error
+004003  2  2C 0C C4     	bit	NX_IOBASE + dr_misc	; Read bit 7 of dr_misc, if set, driver
+004006  2               					; has been initialized
+004006  2  10 0E        	bpl	@done			; No, error
+004008  2               ;
+004008  2  DA           	phx				; Save .X
+004009  2  A6 25        	ldx	nx_rx_get_a		; RxD "get" index
+00400B  2  E4 27        	cpx	nx_rx_put_a		; Compare with RxD "put" index
+00400D  2  F0 06        	beq	@no_datum		; No datum available
+00400F  2               ;
+00400F  2  BD 00 20     	lda	nx_rx_qa, X		; Get datum from queue
+004012  2  E6 25        	inc	nx_rx_get_a		; Increment "get" index
+004014  2  18           	clc				; Clear error (carry)
+004015  2               ;
+004015  2               @no_datum:
+004015  2  FA           	plx				; Restore .X
+004016  2               ;
+004016  2               @done:
+004016  2  60           	rts
+004017  2               ;===============================================================================
+004017  2               ; Process Receive Request (blocking)
+004017  2               ;
+004017  2               ; Call the subroutine and the routine will try to "get" a datum from the
+004017  2               ; corresponding RxQ. If this succeeds, the routine will return:
+004017  2               ;	.A	- valid datum
+004017  2               ;
+004017  2               ; If no datum is present in the RxQ (yet), the routine loop until there is
+004017  2               ;-------------------------------------------------------------------------------
+004017  2               ; nx_sioget_a_block - Read datum Channel A RxQ, blocks when no data is available
+004017  2               ;-----------------------
+004017  2               uart_input:
+004017  2               nx_sioget_a_block:
+004017  2  E2 30        	shortr
+004019  2  2C 0C C4     	bit	NX_IOBASE + dr_misc	; Is the driver initialized?
+00401C  2  10 0F        	bpl	@done			; Nope, just return!
+00401E  2               ;
+00401E  2  DA           	phx				; Save .X
+00401F  2               @try:
+00401F  2  A6 25        	ldx	nx_rx_get_a		; get "get" index
+004021  2  E4 27        	cpx	nx_rx_put_a		; Same as "put" index"
+004023  2  D0 02        	bne	@datum			; No, process datum
+004025  2               					; Otherwise, waste some time waiting
+004025  2  80 F8        	bra	@try
+004027  2               
+004027  2               @datum:
+004027  2  BD 00 20     	lda	nx_rx_qa, X
+00402A  2  E6 25        	inc	nx_rx_get_a
+00402C  2               
+00402C  2  FA           	plx				; Restore .X
+00402D  2               @done:
+00402D  2  60           	rts
+00402E  2               
+00402E  2               ;
+00402E  2               ;-----------------------
+00402E  2               ; nx_sioget_b - Process datum from channel B RxQ
+00402E  2               ;-----------------------
+00402E  2               nx_sioget_b:
+00402E  2  E2 30        	shortr				; Make sure we are in 8-bit registers
+004030  2  38           	sec				; Default: assume error
+004031  2  2C 0C C4     	bit	NX_IOBASE + dr_misc	; Read bit 7 of dr_misc, if set, driver
+004034  2               					; has been initialized
+004034  2  10 0E        	bpl	@done			; No, error
+004036  2               ;
+004036  2  DA           	phx				; Save .X
+004037  2  A6 29        	ldx	nx_rx_get_b		; RxD "get" index
+004039  2  E4 2B        	cpx	nx_rx_put_b		; Compare with RxD "put" index
+00403B  2  F0 06        	beq	@no_datum		; No datum available
+00403D  2               ;
+00403D  2  BD 00 21     	lda	nx_rx_qb, X		; Get datum from queue
+004040  2  E6 29        	inc	nx_rx_get_b		; Increment "get" index
+004042  2  18           	clc				; Clear error (carry)
+004043  2               ;
+004043  2               @no_datum:
+004043  2  FA           	plx				; Restore .X
+004044  2               ;
+004044  2               @done:
+004044  2  60           	rts
+004045  2               ;
+004045  2               ;-------------------------------------------------------------------------------
+004045  2               ; Process Transmit Request
+004045  2               ;
+004045  2               ; Call the subroutine and the routine will try to "put" a datum into the
+004045  2               ; corresponding TxQ. If this succeeds, the routine will return:
+004045  2               ;	carry	- clear
+004045  2               ;
+004045  2               ; NOTE: Carry will be set, if the driver hasn't been initialized,
+004045  2               ;	yet...
+004045  2               ;-------------------------------------------------------------------------------
+004045  2               ; nx_sioput_a - Process datum for channel A TxQ
+004045  2               ;-----------------------
+004045  2               uart_output:
+004045  2               nx_sioput_a:
+004045  2  08           	php
+004046  2  E2 30        	shortr				; 8 bit registers
+004048  2  38           	sec				; Default, assume error
+004049  2  2C 0C C4     	bit	NX_IOBASE + dr_misc	; Read bit 7 of dr_misc, if set, driver
+00404C  2               					; has been initialized
+00404C  2  10 24        	bpl	@done			; No, error!
+00404E  2               ;
+00404E  2  48           	pha				; Preserve .A
+00404F  2  DA           	phx				; Preserve .X
+004050  2               ;
+004050  2  EB           	xba				; Save datum to .B
+004051  2               ;
+004051  2  A5 28        	lda	nx_tx_put_a		; Get TxD "put" index
+004053  2  1A           	ina				; Increment "put" index
+004054  2  29 7F        	and	#buf_idx_mask		; Deal with wrap
+004056  2               ;
+004056  2               @full:					; Loop here until there is space in TxQ
+004056  2  C5 26        	cmp	nx_tx_get_a		; TxQ "get" index
+004058  2  F0 FC        	beq	@full			; TxQ is full, block...
+00405A  2               ;
+00405A  2  A6 28        	ldx	nx_tx_put_a
+00405C  2  EB           	xba				; Restore datum in .A, save new "put"
+00405D  2  9D 80 20     	sta	nx_tx_qa, X		; Put datum into TxQ
+004060  2  EB           	xba				; Retrieve new "put" index from .B
+004061  2  85 28        	sta	nx_tx_put_a
+004063  2               ;
+004063  2               ;	ldx	nx_tx_put_a		; TxQ "put" index
+004063  2               ;	inx
+004063  2               ;
+004063  2               ;@full:
+004063  2               ;	cpx	nx_tx_get_a		; TxQ "get" index
+004063  2               ;	beq	@full			; TxQ is full, block...
+004063  2               ;
+004063  2               ;	dex				; Realign "put" index and ...
+004063  2               ;	sta	nx_tx_qa, X		; ... put datum into TxQ
+004063  2               ;	inc	nx_tx_put_a		; Bump "put" index
+004063  2               ;
+004063  2               ;---------------
+004063  2               ;	Manage transmitter
+004063  2               ;---------------
+004063  2  A9 40        	lda	#nx_txa_dis		; Transmitter disabled flag
+004065  2  1C 0C C4     	trb	NX_IOBASE + dr_misc	; is transmitter disabled?
+004068  2  F0 05        	beq	@cleanup		; No
+00406A  2               
+00406A  2  A9 04        	lda	#nx_cr_tx_ena		; Yes, enable transmitter
+00406C  2  8D 02 C4     	sta	NX_IOBASE + dr_cra
+00406F  2               ;
+00406F  2               @cleanup:
+00406F  2  FA           	plx
+004070  2  68           	pla
+004071  2  18           	clc
+004072  2               ;
+004072  2               @done:
+004072  2  28           	plp				; Restore .SR
+004073  2  60           	rts
+004074  2               ;
+004074  2               ;-----------------------
+004074  2               ; nx_sioput_b - Process datum from channel B TxQ
+004074  2               ;-----------------------
+004074  2               nx_sioput_b:
+004074  2  08           	php
+004075  2  E2 30        	shortr				; 8 bit registers
+004077  2  38           	sec				; Default, assume error
+004078  2  2C 0C C4     	bit	NX_IOBASE + dr_misc	; Read bit 7 of dr_misc, if set, driver
+00407B  2               					; has been initialized
+00407B  2  10 24        	bpl	@done			; No, error!
+00407D  2               ;
+00407D  2  48           	pha				; Preserve .A
+00407E  2  DA           	phx				; Preserve .X
+00407F  2               ;
+00407F  2  EB           	xba				; Save datum to .B
+004080  2               ;
+004080  2  A5 2C        	lda	nx_tx_put_b		; Get TxD "put" index
+004082  2  1A           	inc	a			; Increment "put" index
+004083  2  29 7F        	and	#buf_idx_mask		; Deal with wrap
+004085  2               ;
+004085  2               @full:					; Loop here until there is space in TxQ
+004085  2  C5 2A        	cmp	nx_tx_get_b		; TxQ "get" index
+004087  2  F0 FC        	beq	@full			; TxQ is full, block...
+004089  2               ;
+004089  2  A6 2C        	ldx	nx_tx_put_b
+00408B  2  EB           	xba				; Restore datum in .A, save new "put"
+00408C  2  9D 80 21     	sta	nx_tx_qb, X		; Put datum into TxQ
+00408F  2  EB           	xba				; Retrieve new "put" index from .B
+004090  2  85 2C        	sta	nx_tx_put_b
+004092  2               ;
+004092  2               ;---------------
+004092  2               ;	Manage transmitter
+004092  2               ;---------------
+004092  2  A9 20        	lda	#nx_txb_dis		; Transmitter disabled flag
+004094  2  1C 0C C4     	trb	NX_IOBASE + dr_misc	; is transmitter disabled?
+004097  2  F0 05        	beq	@cleanup		; No
+004099  2               
+004099  2  A9 04        	lda	#nx_cr_tx_ena		; Yes, enable transmitter
+00409B  2  8D 0A C4     	sta	NX_IOBASE + dr_crb
+00409E  2               ;
+00409E  2               @cleanup:
+00409E  2  FA           	plx
+00409F  2  68           	pla
+0040A0  2  18           	clc
+0040A1  2               ;
+0040A1  2               @done:
+0040A1  2  28           	plp				; Restore .SR
+0040A2  2  60           	rts
+0040A3  2               ;
+0040A3  2               ;-------------------------------------------------------------------------------
+0040A3  2               ; UART Channel B Control
+0040A3  2               ;
+0040A3  2               ; Enable/disable channel based on carry value. Routine is based (copied ;)) from
+0040A3  2               ; BDD's SBC POCv1 ROM
+0040A3  2               ;
+0040A3  2               ; carry = 1	=> Enable channel B
+0040A3  2               ; carry = 0	=> Disable channel B
+0040A3  2               ;-------------------------------------------------------------------------------
+0040A3  2               nx_chan_b_ctl:
+0040A3  2  E2 20        	shorta
+0040A5  2  90 04        	bcc	nx_dis_chanb		; If carry is cleared, disable channel B
+0040A7  2               ;
+0040A7  2               nx_ena_chanb:
+0040A7  2  A9 85        	lda	#(nx_cr_rxtx_ena | nx_cr_rts_ass)
+0040A9  2  80 02        	bra	nx_chanctl		; Write to DUART command register
+0040AB  2               ;
+0040AB  2               nx_dis_chanb:
+0040AB  2  A9 9A        	lda	#(nx_cr_rxtx_dis | nx_cr_rts_dea)
+0040AD  2               ;
+0040AD  2               nx_chanctl:
+0040AD  2  8D 0A C4     	sta	NX_IOBASE + dr_crb	; Save to Command Register channel B
+0040B0  2  CB           	wai				; We have to wait two /IRQs?
+0040B1  2  CB           	wai
+0040B2  2  60           	rts
+0040B3  2               
+0040B3  1               	.include	"interrupt.asm"
+0040B3  2               ;===============================================================================
+0040B3  2               ;   A D R I A   - Philips/NXP 28L9x Interrupt handler(s)
+0040B3  2               ;
+0040B3  2               ; 	This source file holds the interrupt handler(s) (back-end of driver)
+0040B3  2               ;	for the Philips/NXP 28L9x IC.
+0040B3  2               ;
+0040B3  2               ;	Version history:
+0040B3  2               ;		26 jan 2021 	- Inital version
+0040B3  2               ;		18 feb 2021 	- Userland driver seems to work, migrating to
+0040B3  2               ;				  ROM based driver
+0040B3  2               ;				- For now, channel B ISR is INCOMPLETE
+0040B3  2               ;===============================================================================
+0040B3  2               ; nx_irq - Hardware Interrupt Request Service routine
+0040B3  2               ;-------------------------------------------------------------------------------
+0040B3  2               nx_irq:
+0040B3  2  E2 30        	shortr				; 8 bit registers
+0040B5  2               ;
+0040B5  2  AD 05 C4     	lda	NX_IOBASE + dr_isr	; Load IRQ register, did UART interrupt?
+0040B8  2               ;
+0040B8  2               ;
+0040B8  2               ; Seems when adding another channel, the branch is taken too long ;) had to
+0040B8  2               ; solve it somehow
+0040B8  2               ;	beq	nx_irq_end		; Nope
+0040B8  2  D0 03        	bne	@save_ISR		; Very short branch
+0040BA  2  4C 38 41     	jmp	nx_irq_end		; And we use a jump
+0040BD  2               ;
+0040BD  2               @save_ISR:
+0040BD  2  E2 20        	shorta
+0040BF  2  48           	pha				; As per tip from BDD
+0040C0  2               					; (see forum.6502.org) I now push .A
+0040C0  2               					; to the stack before!
+0040C0  2               ;
+0040C0  2               ;-----------------------
+0040C0  2               ;	Contents of stack, which we
+0040C0  2               ;	(might) use in the routine
+0040C0  2               ;-----------------------
+0040C0  2               irq_isrx	= 1			; UART IRQ status
+0040C0  2               irq_yreg	= irq_isrx + s_byte			; 16 bit .Y
+0040C0  2               irq_xreg	= irq_yreg  + s_word	; 16 bit .X
+0040C0  2               irq_areg	= irq_xreg  + s_word	; 16 bit .A
+0040C0  2               irq_dpreg	= irq_areg  + s_word	; DP
+0040C0  2               irq_dbreg	= irq_dpreg + s_mpudpx	; DBR
+0040C0  2               ; pushed by hardware
+0040C0  2               irq_srreg	= irq_dbreg + s_mpudbrx	; SR
+0040C0  2               irq_pcreg	= irq_srreg + s_mpusrx	; PC
+0040C0  2               irq_pbreg	= irq_pcreg + s_mpupcx	; PBR
+0040C0  2               ;
+0040C0  2               ;-----------------------
+0040C0  2               ; Test for C/T IRQ
+0040C0  2               ;-----------------------
+0040C0  2               test_ct:
+0040C0  2               ;
+0040C0  2  89 08        	bit	#msk_irq_ct		; Did C/T interrupt?
+0040C2  2  F0 16        	beq	test_rhr_a		; Nope, skip this section
+0040C4  2               ;
+0040C4  2               ;-----------------------
+0040C4  2               ; Process C/T IRQ
+0040C4  2               ;-----------------------
+0040C4  2               @handle_ct:
+0040C4  2  AE 0F C4     	ldx	NX_IOBASE + dr_cnt_stop	; Reset C/T IRQ
+0040C7  2  A6 20        	ldx	nx_jiffycnt		; Get jiffy counter
+0040C9  2  CA           	dex				; Decrement by one
+0040CA  2  D0 0C        	bne	@upd_jiffy		; Not time, yet, to update uptime
+0040CC  2               ;
+0040CC  2  C2 20        	longa				; 16 bit .A
+0040CE  2  E6 21        	inc	nx_uptimecnt		; increment uptime LSW
+0040D0  2  D0 02        	bne	@reset_jiffy		; Done with uptime
+0040D2  2               ;
+0040D2  2  E6 23        	inc	nx_uptimecnt + s_word	; Increment uptime MSW
+0040D4  2               ;
+0040D4  2               @reset_jiffy:
+0040D4  2  E2 30        	shortr				; 8 bit .A
+0040D6  2  A2 64        	ldx	#hz			; Reset jiffy count
+0040D8  2               ;
+0040D8  2               @upd_jiffy:
+0040D8  2  86 20        	stx	nx_jiffycnt		; Set new jiffy count value
+0040DA  2               ;
+0040DA  2               ;-----------------------
+0040DA  2               ; Test for channel A RHR IRQ
+0040DA  2               ;-----------------------
+0040DA  2               test_rhr_a:
+0040DA  2  E2 30        	shortr
+0040DC  2  A3 01        	lda	irq_isrx, S		; Get original ISR from stack
+0040DE  2  89 02        	bit	#msk_irq_rxa		; Did receiver A request?
+0040E0  2  F0 1E        	beq	test_rhr_b		; Nope, check channel B
+0040E2  2               ;-----------------------
+0040E2  2               ; Process channel A RHR IRQ
+0040E2  2               ;
+0040E2  2               ; Enter loop to service RHR. Loop will not break until RHR is empty
+0040E2  2               ;-----------------------
+0040E2  2               @handle_rhr_a:
+0040E2  2  A0 01        	ldy	#msk_sr_rx_rdy		; RHR status mask
+0040E4  2               @process_datum:
+0040E4  2  98           	tya
+0040E5  2  2C 01 C4     	bit	NX_IOBASE + dr_sra	; Do we have anything in our RHR for
+0040E8  2  F0 16        	beq	test_rhr_b		; channel A? Nope: go to B
+0040EA  2               
+0040EA  2  AD 03 C4     	lda	NX_IOBASE + dr_rxfifoa	; YES, read datum from RHR
+0040ED  2  A6 27        	ldx	nx_rx_put_a		; RxD "put" index
+0040EF  2  E8           	inx				; Increment
+0040F0  2  E4 25        	cpx	nx_rx_get_a		; Compare with "get" index
+0040F2  2  F0 F0        	beq	@process_datum		; RxQ is full
+0040F4  2               ;-----------------------
+0040F4  2               ; If RxQ is full, the datum cannot be processed and is lost, corrupting the
+0040F4  2               ; data stream. This should not happen is the frontend gets from RxQ in time
+0040F4  2               ;-----------------------
+0040F4  2  CA           	dex				; Realign RxD "put" index
+0040F5  2  9D 00 20     	sta	nx_rx_qa, X		; Store datum into RxQ
+0040F8  2               ;
+0040F8  2  8A           	txa
+0040F9  2  1A           	inc	a			; Increment RxD "put" index
+0040FA  2  29 7F        	and	#buf_idx_mask		; Deal with index wrap
+0040FC  2  85 27        	sta	nx_rx_put_a		; Save new "put" index
+0040FE  2               ;
+0040FE  2  80 E4        	bra	@process_datum		; Loop for next
+004100  2               test_rhr_b:
+004100  2  A3 01        	lda	irq_isrx, S
+004102  2               @handle_rhr_b:
+004102  2               ;
+004102  2               ;-----------------------
+004102  2               ; Test for channel A THR IRQ
+004102  2               ;-----------------------
+004102  2               test_thr_a:
+004102  2  A3 01        	lda	irq_isrx, S		; Get ISR from stack
+004104  2               ;
+004104  2  89 01        	bit	#msk_irq_txa		; Did Xmitter A request interrupt?
+004106  2  F0 2B        	beq	test_thr_b		; Nope, try Xmitter B
+004108  2               ;-----------------------
+004108  2               ; Process channel A THR IRQ
+004108  2               ;-----------------------
+004108  2               @handle_thr_a:
+004108  2  A6 26        	ldx	nx_tx_get_a		; Get current TxQ "get" index
+00410A  2  A0 04        	ldy	#msk_sr_tx_rdy		; THR status mask
+00410C  2               ;-----------------------
+00410C  2               ; Enter the loop to service the THR interrupt. This loop will continue until
+00410C  2               ; the THR is full or TxQ is empty
+00410C  2               ;-----------------------
+00410C  2               @next_datum:
+00410C  2  E4 28        	cpx	nx_tx_put_a		; Any (new) datums in TxQ?
+00410E  2  F0 15        	beq	@tx_off			; Nope, shutdown Xmitter and go to B
+004110  2               ;
+004110  2  98           	tya				; YES ...
+004111  2  2C 01 C4     	bit	NX_IOBASE + dr_sra	; Any space left in THR
+004114  2  F0 1B        	beq	@done			; no, done for now...
+004116  2               ;-----------------------
+004116  2               ; If the THR is full, the transmitter IRQ processing is done for now...
+004116  2               ; Later on, when the THR's level has been reduced, another IRQ will occur and
+004116  2               ; more datums can be processed
+004116  2               ;-----------------------
+004116  2  BD 80 20     	lda	nx_tx_qa, X		; Get datum from queue and ...
+004119  2  8D 03 C4     	sta	NX_IOBASE + dr_txfifoa	; ... write to THR (FIFO)
+00411C  2               ;	inx				; Increment "get" index
+00411C  2  8A           	txa				; Move .X to .A
+00411D  2  1A           	inc	a			; Increment "get" index
+00411E  2  29 7F        	and	#buf_idx_mask		; Deal with wrap?
+004120  2  AA           	tax				; move .A back to .X
+004121  2  86 26        	stx	nx_tx_get_a		; Intermediate save "get" index
+004123  2  80 E7        	bra	@next_datum		; And process next
+004125  2               ;
+004125  2               @tx_off:
+004125  2  A9 08        	lda	#nx_cr_tx_dis		; Shutdown Xmitter A to suppress ...
+004127  2  8D 02 C4     	sta	NX_IOBASE + dr_cra	; ... IRQs
+00412A  2  A9 40        	lda	#nx_txa_dis		; Set Xmitter A disabled flag
+00412C  2  0C 0C C4     	tsb	NX_IOBASE + dr_misc	; Do in MISC register!
+00412F  2  04 2D        	tsb	nx_tx_status		; And in ZP (for debug)
+004131  2               ;
+004131  2               @done:
+004131  2  86 26        	stx	nx_tx_get_a		; Save final TxQ "get" index
+004133  2               ;
+004133  2               test_thr_b:
+004133  2  A3 01        	lda	irq_isrx, S
+004135  2               @handle_thr_b:
+004135  2               
+004135  2               ;
+004135  2               ;-----------------------
+004135  2               ; We have reached the end of our IRQ handler
+004135  2               ;
+004135  2               ; Clean stack from UART IRQ status
+004135  2               ;-----------------------
+004135  2  E2 30        	shortr
+004137  2  68           	pla				; Clear saved UART IRQ Status & discard
+004138  2               ;
+004138  2               nx_irq_end:
+004138  2               ;
+004138  2               ;-----------------------
+004138  2               ; Clear stack and restore saved registers
+004138  2               ;-----------------------
+004138  2  C2 30        	longr				; 16 bit registers to recover
+00413A  2  7A           	ply				; .Y
+00413B  2  FA           	plx				; .X
+00413C  2  68           	pla				; .A
+00413D  2               ;
+00413D  2  2B           	pld				; Restore DP
+00413E  2  AB           	plb				; Restore DBR
+00413F  2               ;
+00413F  2               ;-----------------------
+00413F  2               ;	Contents of stack
+00413F  2               ; pushed by hardware
+00413F  2               ;irq_srreg	= 1			; SR
+00413F  2               ;irq_pcreg	= irq_srreg + s_mpusrx	; PC
+00413F  2               ;irq_pbreg	= irq_pcreg + s_mpupcx	; PBR
+00413F  2  40           	rti				; Return from IRQ
+004140  2               
+004140  1               	.include	"init.asm"
+004140  2               ;===============================================================================
+004140  2               ;   A D R I A   - Philips/NXP 28L9x Initialization routine(s)
+004140  2               ;
+004140  2               ; 	This source file holds the initialization routine(s) for the
+004140  2               ;	Philips/NXP 28L9x IC.
+004140  2               ;
+004140  2               ;	Version history:
+004140  2               ;		26 jan 2021 	- Inital version
+004140  2               ;		18 feb 2021 	- Userland driver seems to work, migrating to
+004140  2               ;				  ROM based driver
+004140  2               ;===============================================================================
+004140  2               ; nx_init - Initialize 28L9x environment
+004140  2               ;
+004140  2               ; Will read the configuration parameters from the table (bottom-up) and write
+004140  2               ; them to the 29L9x.
+004140  2               ;
+004140  2               ; Currently the table is made for the 28L92 (2 ports), but this can be extended
+004140  2               ; to the 8-port variant.
+004140  2               ;
+004140  2               ; Returns with carry cleared.
+004140  2               ;-------------------------------------------------------------------------------
+004140  2               uart_init:
+004140  2               nx_init:
+004140  2  E2 30        	shortr
+004142  2  78           	sei				; Disable interrupts until done
+004143  2               ;---------------------------------------
+004143  2               ; We use register $0C (dr_misc) of the 28L9x as temporary storage
+004143  2               ; and to indicate the driver initialization has succeeded. Initially we zero
+004143  2               ; this register
+004143  2  9C 0C C4     	stz	NX_IOBASE + dr_misc
+004146  2               ;
+004146  2               ; Clear used/reserved zeropage (DP) locations
+004146  2               ;---------------------------------------
+004146  2  A2 00        	ldx	#$00
+004148  2               @nextAddr:
+004148  2  74 20        	stz	nx_zeropage, X
+00414A  2  E8           	inx
+00414B  2  E0 20        	cpx	#$20			; Reserve $20 (32) bytes and clear these
+00414D  2  D0 F9        	bne	@nextAddr
+00414F  2               ;
+00414F  2               ; Prepare jiffy counter
+00414F  2               ;---------------------------------------
+00414F  2  A9 64        	lda	#hz
+004151  2  85 20        	sta	nx_jiffycnt
+004153  2               ;
+004153  2               ; Set up the 28L9x IC using the setup/lookup table
+004153  2               ;---------------------------------------
+004153  2  A0 42        	ldy	#size_l92_suTable - 2	; Get size of setup/lookup table
+004155  2               @setup:
+004155  2  BE 85 41     	ldx	l92_suTable, Y		; Read register offset
+004158  2  B9 86 41     	lda	l92_suTable + s_byte, Y	; Read register parameter
+00415B  2               ;
+00415B  2  9D 00 C4     	sta	NX_IOBASE, X		; Write to register
+00415E  2               ;
+00415E  2  88           	dey				; As we use two bytes per register, ...
+00415F  2  88           	dey				; ... we have to decrement .Y by 2
+004160  2  10 F3        	bpl	@setup			; Continue until we have reached top
+004162  2               ;
+004162  2               ; When we assemble for the userland driver, we have to point the input vectors
+004162  2               ; to our driver
+004162  2               .if	NX_USERDRIVER
+004162  2               ;
+004162  2               ; before we return, just point to our IRQ handler (when in userland!)
+004162  2  C2 30        	longr
+004164  2  AD D8 02     	lda	VECTOR_INT		; Get original /IRQ vector
+004167  2  85 2E        	sta	rom_irq			; Save it for later
+004169  2               ;
+004169  2  A9 B3 40     	lda	#nx_irq			; Install our new /IRQ vector
+00416C  2  AA           	tax
+00416D  2  49 AD DE     	eor	#$DEAD			; Calculate checksum (force invalid for
+004170  2               					; now)
+004170  2  8D DA 02     	sta	CHKSUM_INT		; Store the checksum
+004173  2  8E D8 02     	stx	VECTOR_INT		; Save the new vector
+004176  2               ;
+004176  2  E2 30        	shortr				; 8 bit registers
+004178  2               .endif
+004178  2               ;
+004178  2               ; Before we return we have to start the counter by reading IOBASE + dr_cnt_start
+004178  2               ; As BDD mentioned, it might be safer to use a BIT instruction
+004178  2               ;	lda	IOBASE + dr_cnt_start
+004178  2  2C 0E C4     	bit	NX_IOBASE + dr_cnt_start
+00417B  2               ;
+00417B  2               ; Now we should get a 100Hz ticker and by enabling the interrupts (below), we
+00417B  2               ; should now have a 0.01 second clock timer ;)
+00417B  2               ;
+00417B  2               ; Before returning, set the nx_driver_init flag
+00417B  2  A9 80        	lda	#nx_driver_init
+00417D  2  0C 0C C4     	tsb	NX_IOBASE + dr_misc	; Store this is the dr_misc register
+004180  2  04 2D        	tsb	nx_tx_status
+004182  2               ;
+004182  2  58           	cli				; Enable interrupts
+004183  2  18           	clc				; C is cleared, no error
+004184  2  60           	rts
+004185  2               ;
+004185  2               
+004185  1               	.include	"tables.asm"
+004185  2               ;===============================================================================
+004185  2               ;   A D R I A   - Philips/NXP 28L9x Fixed data/reference/lookup tables
+004185  2               ;
+004185  2               ;	Version history:
+004185  2               ;		26 jan 2021 - Inital version
+004185  2               ;		08 feb 2020 - Changed Counter mode to Timer mode
+004185  2               ;===============================================================================
+004185  2               ; l92_suTable - 28L9x initialization sequence for two (2) ports
+004185  2               ;---------------------------------------
+004185  2               l92_suTable:				; Philip/NXP 28L9x Initialization Table
+004185  2               ;
+004185  2               ; vvv  DEBUG  vvv
+004185  2               ; Disabled IRQ for now, we have to start them manually)
+004185  2  05 3B        	.byte	dr_imr, nx_irq_msk	; IMR (Enable IRQs)
+004187  2               ;	.byte	dr_imr, msk_irq_ct	; For testing, only enable CT IRQs
+004187  2               ; ^^^  DEBUG  ^^^
+004187  2               ;
+004187  2  06 48        	.byte	dr_ctu, nx_cnt_hi	; CTU
+004189  2  07 00        	.byte	dr_ctl, nx_cnt_lo	; CTL
+00418B  2               
+00418B  2  0A 0A        	.byte	dr_crb, nx_cr_rxtx_dis	; CRB - Disable RxD and TxD
+00418D  2               ;---------------------------------------
+00418D  2               ; Port B will be disabled, for now!
+00418D  2               ;---------------------------------------
+00418D  2               ;
+00418D  2  09 CC        	.byte	dr_csrb, nx_csr		; CSR - Set Clock Register
+00418F  2  08 17        	.byte	dr_mrb, nx_mr2		; MR2 - Set Mode Register 2
+004191  2  08 D3        	.byte	dr_mrb, nx_mr1		; MR1 - Set Mode Register 1
+004193  2  0A 10        	.byte	dr_crb, nx_cr_mr1	; CRA - Select Mode Register 1
+004195  2  08 C8        	.byte	dr_mrb, nx_mr0		; MR0 - Set Memory Register 0
+004197  2  0A B0        	.byte	dr_crb, nx_cr_mr0	; CRA - Select Mode Register 0
+004199  2               ;---------------------------------------
+004199  2               ; Port B
+004199  2               ;---------------------------------------
+004199  2               ;
+004199  2  02 80        	.byte	dr_cra, nx_cr_rts_ass	; CRA - Assert RTS
+00419B  2  02 05        	.byte	dr_cra, nx_cr_rxtx_ena	; CRA - Enable RxD and TxD
+00419D  2               
+00419D  2               ;	.byte	dr_cra, nx_cr_rxtx_dis	; CRA - For now, disable RxD and TxD
+00419D  2               ;
+00419D  2               ;---------------------------------------
+00419D  2               ; Enable port A
+00419D  2               ;---------------------------------------
+00419D  2               ;
+00419D  2  01 CC        	.byte	dr_csra, nx_csr		; CSR - Set Clock Register
+00419F  2  00 17        	.byte	dr_mra, nx_mr2		; MR2 - Set Mode Register 2
+0041A1  2  00 D3        	.byte	dr_mra, nx_mr1		; MR1 - Set Mode Register 1
+0041A3  2  02 10        	.byte	dr_cra, nx_cr_mr1	; CRA - Select Mode Register 1
+0041A5  2  00 C8        	.byte	dr_mra, nx_mr0		; MR0 - Set Memory Register 0
+0041A7  2  02 B0        	.byte	dr_cra, nx_cr_mr0	; CRA - Select Mode Register 0
+0041A9  2               ;---------------------------------------
+0041A9  2               ; Port A
+0041A9  2               ;---------------------------------------
+0041A9  2               ;
+0041A9  2  04 E0        	.byte	dr_acr, nx_acr_def	; ACR - Auxiliary Control Register
+0041AB  2               ;---------------------------------------
+0041AB  2               ; ACR
+0041AB  2               ;---------------------------------------
+0041AB  2               ;
+0041AB  2  0D F0        	.byte	dr_opcr, nx_opcr_def	; OPCR - Output Port Configuration Reg
+0041AD  2               ;---------------------------------------
+0041AD  2               ; OPCR
+0041AD  2               ;---------------------------------------
+0041AD  2               ;
+0041AD  2  0A C0        	.byte	dr_crb, nx_cr_cnt_mod 	; CRB - Select C/T Counter mode
+0041AF  2  0A 40        	.byte	dr_crb, nx_cr_err_res	; CRB - Reset error status
+0041B1  2  0A 50        	.byte	dr_crb, nx_cr_bir_res	; CRB - Reset Received Break Change IRQ
+0041B3  2  0A 30        	.byte	dr_crb, nx_cr_tx_res	; CRB - Reset transmitter
+0041B5  2  0A 20        	.byte	dr_crb, nx_cr_rx_res	; CRB - Reset receiver
+0041B7  2  0A 90        	.byte	dr_crb, nx_cr_rts_dea 	; CRB - Deassert RTS
+0041B9  2               ;---------------------------------------
+0041B9  2               ; Init port B
+0041B9  2               ;---------------------------------------
+0041B9  2               
+0041B9  2  02 C0        	.byte	dr_cra, nx_cr_cnt_mod 	; CRA - Select C/T Counter mode
+0041BB  2  02 40        	.byte	dr_cra, nx_cr_err_res	; CRA - Reset error status
+0041BD  2  02 50        	.byte	dr_cra, nx_cr_bir_res	; CRA - Reset Received Break Change IRQ
+0041BF  2  02 30        	.byte	dr_cra, nx_cr_tx_res	; CRA - Reset transmitter
+0041C1  2  02 20        	.byte	dr_cra, nx_cr_rx_res	; CRA - Reset receiver
+0041C3  2  02 90        	.byte	dr_cra, nx_cr_rts_dea 	; CRA - Deassert RTS
+0041C5  2               ;---------------------------------------
+0041C5  2               ; Init port A
+0041C5  2               ;---------------------------------------
+0041C5  2               ;
+0041C5  2  05 00        	.byte	dr_imr, $00		; IMR - Disable IRQs
+0041C7  2  02 F0        	.byte	dr_cra, nx_cr_pwr_up	; CRA - Power up
+0041C9  2               ;---------------------------------------
+0041C9  2               ; Size of table
+0041C9  2               ;---------------------------------------
+0041C9  2               size_l92_suTable	= * - l92_suTable
+0041C9  2               ;
+0041C9  2               ;***********************
+0041C9  2               ; DEBUG, remove when done!
+0041C9  2               ;***********************
+0041C9  2  44 00        	.word	size_l92_suTable
+0041CB  2  00 48        	.word	nx_ct_scale/hz
+0041CD  2  00           	.byte	<(nx_ct_scale/hz)
+0041CE  2  48           	.byte	>(nx_ct_scale/hz)
+0041CF  2               ;
+0041CF  2  20           	.byte	nx_jiffycnt
+0041D0  2  21           	.byte	nx_uptimecnt
+0041D1  2  25           	.byte	nx_rx_get_a
+0041D2  2  27           	.byte	nx_rx_put_a
+0041D3  2  26           	.byte	nx_tx_get_a
+0041D4  2  28           	.byte	nx_tx_put_a
+0041D5  2  2D           	.byte	nx_tx_status
+0041D6  2  2E           	.byte	rom_irq
+0041D7  2               
+0041D7  1               ;
+0041D7  1               ;---------------------------------------
+0041D7  1               ; Used to calculate memory footprint of the module
+0041D7  1               ;---------------------------------------
+0041D7  1               ; End of routines
+0041D7  1               ; Calculation of usage
+0041D7  1               _uart_end	=	*
+0041D7  1               _uart_size 	=	_uart_end - UART_DRIVER
+0041D7  1               	.out .concat("UART driver                       $", .sprintf("%04x", UART_DRIVER), "      $", .sprintf("%04x", _uart_end), "    $", .sprintf("%04x", _uart_size), "  (", .sprintf("%05d", _uart_size), ")")
+0041D7  1               ;	.out	.concat("---- Size of UART (28L92) routines:   $", .sprintf("%04x", _uart_size), "(", .sprintf("%05d", _uart_size), ")")
+0041D7  1               ;=======================================================================
+0041D7  1               

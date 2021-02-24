@@ -1,0 +1,93 @@
+;PALASM Design Description
+
+;---------------------------------- Declaration Segment ------------
+TITLE    U1
+PATTERN
+REVISION 1.0
+AUTHOR   Xander Maas
+COMPANY  Xander Maas
+DATE     01/04/21
+;
+; 04 Jan 2021	-	v1.0	- Initial version
+; 20 jan 2021	-	v1.1	- Moved 6551 UART to slot 1
+;				  Freed slot 4 for development
+;
+CHIP  _U1  PAL22V10
+
+;---------------------------------- PIN Declarations ---------------
+PIN  1          AVALID                                           ; Active Low 
+PIN  2          BANK00                                           ; Active Low
+PIN  3          A4                                               ;
+PIN  4          A5                                               ;
+PIN  5          A6                                               ;
+PIN  6          A7                                               ;
+PIN  7          A8                                               ;
+PIN  8          A9                                               ;
+PIN  9          A10                                              ;
+PIN  10         A11                                              ;
+PIN  11         A12                                              ;
+PIN  13         A15                                              ;
+PIN  14         A14                                              ;
+PIN  15         A13                                              ;
+PIN  16         IOSEL3                                           ; Active Low
+PIN  17         IOSEL2                                           ; Active Low
+PIN  18         IOSEL1                                           ; Active Low
+PIN  19         IOSEL0                                           ; Active Low
+PIN  20         ROMSEL                                           ; Active Low
+PIN  21         RAMSEL                                           ; Active Low
+PIN  22         ROM_HIGH                                         ; Active Low
+PIN  23         BANKFF                                           ; Active Low
+
+;----------------------------------- Boolean Equation Segment ------
+EQUATIONS
+
+; ROM will be enabled when:
+;	bank $00: $00/C000 - $00/FFFF
+;
+; In the future we can use the /ROM_HIGH signal to use ROM in higher
+; banks, but for now we are not going to use it.
+;-------------------------------------------------------------------
+/ROMSEL = /AVALID * IOSEL0 * IOSEL1 * IOSEL2 * IOSEL3 * (/BANK00 * A15 * A14); 
+
+; RAM will be enabled when:
+;	bank $00: $00/0000 - $00/BFFF
+;-------------------------------------------------------------------
+/RAMSEL = /AVALID * ROMSEL * IOSEL0 * IOSEL1 * IOSEL2 * IOSEL3;
+
+;
+; I/O will be in the range $00/C000 - $00/CFFF
+;-------------------------------------------------------------------
+; Slot 1 (/IOSEL0) will will (for now) be used for serial/UART. We use
+; the address $00/C020 - $00/C021 for 6551
+;
+; Address	15 14 13 12 11 10 09 08 07 06 05 04 03 02 01 00
+;		 1  1  0  0  0  0  0  0  0  0  1  0  x  x  x  x
+;-------------------------------------------------------------------
+/IOSEL0 = /AVALID * /BANK00 * A15 * A14 * /A13 * /A12 * /A11 * /A10 * /A9 * /A8 * /A7 * /A6 * A5 * /A4;
+
+;-------------------------------------------------------------------
+; Slot 2 (/IOSEL1) will be enabled when:
+;	bank $00: $00/C200 - $00/C2FF
+;
+; Address	15 14 13 12 11 10 09 08 07 06 05 04 03 02 01 00
+;		 1  1  0  0  0  0  1  0  x  x  x  x  x  x  x  x
+;-------------------------------------------------------------------
+/IOSEL1 = /AVALID * /BANK00 * A15 * A14 * /A13 * /A12 * /A11 * /A10 * A9 * /A8;
+
+;-------------------------------------------------------------------
+; Slot 3 (/IOSEL2) will be enabled when:
+;	bank $00: $00/C300 - $00/C3FF
+;
+; Address	15 14 13 12 11 10 09 08 07 06 05 04 03 02 01 00
+;		 1  1  0  0  0  0  1  1  x  x  x  x  x  x  x  x
+;-------------------------------------------------------------------
+/IOSEL2 = /AVALID * /BANK00 * A15 * A14 * /A13 * /A12 * /A11 * /A10 * A9 * A8;
+
+;-------------------------------------------------------------------
+; Slot 4 (/IOSEL3) will be enabled when:
+;	bank $00: $00/C400 - $00/C4FF
+;
+; Address	15 14 13 12 11 10 09 08 07 06 05 04 03 02 01 00
+;		 1  1  0  0  0  1  0  0  x  x  x  x  x  x  x  x
+;-------------------------------------------------------------------
+/IOSEL3 = /AVALID * /BANK00 * A15 * A14 * /A13 * /A12 * /A11 * A10 * /A9 * /A8;

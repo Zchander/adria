@@ -1,0 +1,25 @@
+EESchema-LIBRARY Version 2.3
+#encoding utf-8
+#(c) SnapEDA 2016 (snapeda.com)
+#This work is licensed under a Creative Commons Attribution-ShareAlike 4.0 International License (CC BY-SA) with Design Exception 1.0
+#
+# DS1813-10
+#
+DEF DS1813-10 U 0 40 Y Y 1 L N
+F0 "U" 915 359 50 H V L BNN
+F1 "DS1813-10" 890 259 50 H V L BNN
+F2 "21-0248A" 0 0 50 H I L BNN
+F3 "MAXIM" 0 0 50 H I L BNN
+F4 "ds181315+" 0 0 50 H I L BNN
+DRAW
+P 2 0 0 6 300 200 300 -300 N
+P 2 0 0 6 300 -300 1900 -300 N
+P 2 0 0 6 1900 -300 1900 200 N
+P 2 0 0 6 1900 200 300 200 N
+X *RST 1 0 0 300 R 40 40 0 0 B 
+X VCC 2 2200 -100 300 L 40 40 0 0 W 
+X GND 3 2200 0 300 L 40 40 0 0 W 
+ENDDRAW
+ENDDEF
+#
+# End Library

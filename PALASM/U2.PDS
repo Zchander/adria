@@ -1,0 +1,55 @@
+;PALASM Design Description
+
+;---------------------------------- Declaration Segment ------------
+TITLE    U2
+PATTERN
+REVISION 1.0
+AUTHOR   Xander Maas
+COMPANY  Xander Maas
+DATE     01/04/21
+;
+; 04 Jan 2021	-	v1.0	- Initial version
+;
+CHIP  _u2  PAL22V10
+
+;---------------------------------- PIN Declarations ---------------
+PIN  1          PHI2                                             ;
+PIN  2          RW                                               ; Read > High, Write > Low
+PIN  3          A16                                              ;
+PIN  4          A17                                              ;
+PIN  5          A18                                              ;
+PIN  6          A19                                              ;
+PIN  7          A20                                              ;
+PIN  8          A21                                              ;
+PIN  9          A22                                              ;
+PIN  10         A23                                              ;
+PIN  11         VPA                                              ;
+PIN  13         VDA                                              ;
+PIN  14         AVALID                                           ; Active Low
+PIN  20         ROM_HIGH                                         ; Active Low
+PIN  21         OE                                               ; Active Low
+PIN  22         WE                                               ; Active Low
+PIN  23         BANK00                                           ; Active Low
+
+;----------------------------------- Boolean Equation Segment ------
+EQUATIONS
+;
+; An address is only valid if VPA or VDA is active, or both
+/AVALID = (VPA + VDA);
+
+;
+; Enable writing only when PHI2 is HIGH and RW is LOW
+/WE = (PHI2 * /RW);
+
+;
+; Enable output (read) only when PHI2 is HIGH and RW is HIGH
+/OE = (PHI2 * RW);
+
+;
+; /BANK00 is easy to identify, A16..A23 are low ;)
+/BANK00 = (/A16 * /A17 * /A18 * /A19 * /A20 * /A21 * /A22 * /A23);
+
+; We use Bank $01 (address $01/0000 - $02/FFFF) for an additional 64kByte
+; /ROM_HIGH isn't used right now, but might be later
+; So this signal is forced high for now
+/ROM_HIGH = #b1;

@@ -1,0 +1,90 @@
+ca65 V2.18 - Git 39c0abed5
+Main file   : primes.asm
+Current file: primes.asm
+
+000000r 1                 .org $3000
+003000  1                 .p816
+003000  1                 .smart
+003000  1               
+003000  1               ; some constants
+003000  1               ZERO 	=	$30
+003000  1               SPACE 	=	$20
+003000  1               COUNT   =	20 ; Primes left to find
+003000  1               
+003000  1               ; some zero page locations
+003000  1               ;define CHROUT $0f ; output device (visual6502)
+003000  1               INDEX  	=	$06 ; Index in decimal
+003000  1               FLAGS  	=	$30 ; Prime flags (sieve)
+003000  1               
+003000  1  E2 30          SEP	#$30
+003002  1               
+003002  1  A0 14          LDY   #COUNT              ; Set target count
+003004  1  A9 02          LDA   #2                  ; And starting index
+003006  1  85 06          STA   INDEX
+003008  1  F8             SED                      ; Use decimal
+003009  1               repeat:
+003009  1  AA             TAX                      ; Is this number prime?
+00300A  1  B5 30          LDA   FLAGS,X
+00300C  1  D0 3A          BNE checknext
+00300E  1  A9 20          LDA   #SPACE                  ; Yes, print it
+003010  1               
+003010  1  48             PHA
+003011  1  DA             PHX
+003012  1  5A             PHY
+003013  1  20 0C FD       jsr	$FD0C
+003016  1  7A             PLY
+003017  1  FA             PLX
+003018  1  68             PLA
+003019  1               
+003019  1  8A             TXA
+00301A  1  4A             LSR   A
+00301B  1  4A             LSR   A
+00301C  1  4A             LSR   A
+00301D  1  4A             LSR   A
+00301E  1  F0 0B          BEQ skip  ; tens digit zero?
+003020  1  09 30          ORA   #ZERO ; to ascii
+003022  1               
+003022  1  48             PHA
+003023  1  DA             PHX
+003024  1  5A             PHY
+003025  1  20 0C FD       jsr	$FD0C
+003028  1  7A             PLY
+003029  1  FA             PLX
+00302A  1  68             PLA
+00302B  1               
+00302B  1               skip:
+00302B  1  8A             TXA
+00302C  1  29 0F          AND   #$0f  ; units digit
+00302E  1  09 30          ORA   #ZERO ; to ascii
+003030  1               
+003030  1  48             PHA
+003031  1  DA             PHX
+003032  1  5A             PHY
+003033  1  20 0C FD       jsr	$FD0C
+003036  1  7A             PLY
+003037  1  FA             PLX
+003038  1  68             PLA
+003039  1               
+003039  1  88             DEY                          ; Found twenty?
+00303A  1  F0 14          BEQ done                     ; Yes
+00303C  1               
+00303C  1  18             CLC
+00303D  1  8A             TXA
+00303E  1               marking:
+00303E  1  65 06          ADC   INDEX
+003040  1  B0 05          BCS clearcarry ; BREAK CS at 100 (decimal)
+003042  1  AA             TAX
+003043  1  95 30          STA   FLAGS,X
+003045  1  D0 F7          BNE marking ; UNTIL EQ ; until 100
+003047  1               
+003047  1               clearcarry:
+003047  1  18             CLC
+003048  1               checknext:       ; Check the next index
+003048  1  A5 06          LDA   INDEX
+00304A  1  69 01          ADC   #1 ; carry is clear
+00304C  1  85 06          STA   INDEX
+00304E  1  D0 B9          BNE repeat ; UNTIL EQ (to 100)
+003050  1               
+003050  1               done:
+003050  1  60             RTS
+003050  1               
