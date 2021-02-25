@@ -51,6 +51,7 @@ Current file: main.asm
 00C000  2               ; Version history:
 00C000  2               ;	05 Jan 2021	- Initial version
 00C000  2               ;	08 feb 2021	- Some minor changes to interrupt handlers
+00C000  2               ;	25 feb 2021	- Consolidate ZP usage (try to make it one block)
 00C000  2               ;=======================================================================
 00C000  2               ; Assembly related variables (for conditional assembly)
 00C000  2               ;---------------------------------------
@@ -65,7 +66,7 @@ Current file: main.asm
 00C000  2               	.byte	'.'
 00C000  2               	.byte	'1'			; Minor
 00C000  2               	.byte	'.'
-00C000  2               	.byte	'2'			; Revision
+00C000  2               	.byte	'3'			; Revision
 00C000  2               	.endmacro
 00C000  2               
 00C000  2               	.macro	longi			; Set .X and .Y to 16-bit
@@ -1234,6 +1235,8 @@ Current file: main.asm
 00CD00  3               ;		26 jan 2021 	- Initial version
 00CD00  3               ;		18 feb 2021 	- Userland driver seems to work, migrating to
 00CD00  3               ;				  ROM based driver
+00CD00  3               ;		25 feb 2021	- Consolidate ZP usage (try to make it one
+00CD00  3               ;				  block)
 00CD00  3               ;===============================================================================
 00CD00  3               ; GENERIC
 00CD00  3               ;=======================================
@@ -1400,7 +1403,7 @@ Current file: main.asm
 00CD00  3               ;---------------------------------------
 00CD00  3               ; 	Zeropage / Direct Page
 00CD00  3               ;---------------
-00CD00  3               nx_zeropage	= $20			; We use ZP from $20
+00CD00  3               nx_zeropage	= $60			; We use ZP from $60
 00CD00  3               nx_jiffycnt	= nx_zeropage		; Jiffy counter
 00CD00  3               ;---------------
 00CD00  3               ;	Uptime is little endian!
@@ -1653,16 +1656,16 @@ Current file: main.asm
 00CD06  3  10 19        	bpl	@done			; No, error
 00CD08  3               ;
 00CD08  3  DA           	phx				; Save .X
-00CD09  3  AE 25 00     	ldx	nx_rx_get_a		; RxD "get" index
-00CD0C  3  EC 27 00     	cpx	nx_rx_put_a		; Compare with RxD "put" index
+00CD09  3  AE 65 00     	ldx	nx_rx_get_a		; RxD "get" index
+00CD0C  3  EC 67 00     	cpx	nx_rx_put_a		; Compare with RxD "put" index
 00CD0F  3  F0 0F        	beq	@no_datum		; No datum available
 00CD11  3               ;
 00CD11  3  BD 00 20     	lda	nx_rx_qa, X		; Get datum from queue
 00CD14  3  EB           	xba				; Move .A to .B
-00CD15  3  AD 25 00     	lda	nx_rx_get_a		; Get "get" index
+00CD15  3  AD 65 00     	lda	nx_rx_get_a		; Get "get" index
 00CD18  3  1A           	inc	a			; bump "get" index
 00CD19  3  29 7F        	and	#buf_idx_mask		; Deal with wrap
-00CD1B  3  8D 25 00     	sta	nx_rx_get_a		; Store new "get" index
+00CD1B  3  8D 65 00     	sta	nx_rx_get_a		; Store new "get" index
 00CD1E  3  EB           	xba				; Restore datum to .A (from .B)
 00CD1F  3               ;	inc	nx_rx_get_a		; Increment "get" index
 00CD1F  3  18           	clc				; Clear error (carry)
@@ -1691,8 +1694,8 @@ Current file: main.asm
 00CD29  3               ;
 00CD29  3  DA           	phx				; Save .X
 00CD2A  3               @try:
-00CD2A  3  AE 25 00     	ldx	nx_rx_get_a		; get "get" index
-00CD2D  3  EC 27 00     	cpx	nx_rx_put_a		; Same as "put" index"
+00CD2A  3  AE 65 00     	ldx	nx_rx_get_a		; get "get" index
+00CD2D  3  EC 67 00     	cpx	nx_rx_put_a		; Same as "put" index"
 00CD30  3  F0 F8        	beq	@try			; If no new datum, retry ...
 00CD32  3               ;	bne	@datum			; No, process datum
 00CD32  3               ;					; Otherwise, waste some time waiting
@@ -1701,10 +1704,10 @@ Current file: main.asm
 00CD32  3               @datum:
 00CD32  3  BD 00 20     	lda	nx_rx_qa, X
 00CD35  3  EB           	xba				; Save datum to .B
-00CD36  3  AD 25 00     	lda	nx_rx_get_a		; Get current "get" index
+00CD36  3  AD 65 00     	lda	nx_rx_get_a		; Get current "get" index
 00CD39  3  1A           	inc	a			; Bump index
 00CD3A  3  29 7F        	and	#buf_idx_mask		; Deal with wrap
-00CD3C  3  8D 25 00     	sta	nx_rx_get_a		; Save new "get" index
+00CD3C  3  8D 65 00     	sta	nx_rx_get_a		; Save new "get" index
 00CD3F  3  EB           	xba				; Restore datum from .B
 00CD40  3               ;	inc	nx_rx_get_a
 00CD40  3               
@@ -1724,12 +1727,12 @@ Current file: main.asm
 00CD48  3  10 11        	bpl	@done			; No, error
 00CD4A  3               ;
 00CD4A  3  DA           	phx				; Save .X
-00CD4B  3  AE 29 00     	ldx	nx_rx_get_b		; RxD "get" index
-00CD4E  3  EC 2B 00     	cpx	nx_rx_put_b		; Compare with RxD "put" index
+00CD4B  3  AE 69 00     	ldx	nx_rx_get_b		; RxD "get" index
+00CD4E  3  EC 6B 00     	cpx	nx_rx_put_b		; Compare with RxD "put" index
 00CD51  3  F0 07        	beq	@no_datum		; No datum available
 00CD53  3               ;
 00CD53  3  BD 00 21     	lda	nx_rx_qb, X		; Get datum from queue
-00CD56  3  EE 29 00     	inc	nx_rx_get_b		; Increment "get" index
+00CD56  3  EE 69 00     	inc	nx_rx_get_b		; Increment "get" index
 00CD59  3  18           	clc				; Clear error (carry)
 00CD5A  3               ;
 00CD5A  3               @no_datum:
@@ -1764,19 +1767,19 @@ Current file: main.asm
 00CD67  3               ;
 00CD67  3  EB           	xba				; Save datum to .B
 00CD68  3               ;
-00CD68  3  AD 28 00     	lda	nx_tx_put_a		; Get TxD "put" index
+00CD68  3  AD 68 00     	lda	nx_tx_put_a		; Get TxD "put" index
 00CD6B  3  1A           	ina				; Increment "put" index
 00CD6C  3  29 7F        	and	#buf_idx_mask		; Deal with wrap
 00CD6E  3               ;
 00CD6E  3               @full:					; Loop here until there is space in TxQ
-00CD6E  3  CD 26 00     	cmp	nx_tx_get_a		; TxQ "get" index
+00CD6E  3  CD 66 00     	cmp	nx_tx_get_a		; TxQ "get" index
 00CD71  3  F0 FB        	beq	@full			; TxQ is full, block...
 00CD73  3               ;
-00CD73  3  AE 28 00     	ldx	nx_tx_put_a
+00CD73  3  AE 68 00     	ldx	nx_tx_put_a
 00CD76  3  EB           	xba				; Restore datum in .A, save new "put"
 00CD77  3  9D 80 20     	sta	nx_tx_qa, X		; Put datum into TxQ
 00CD7A  3  EB           	xba				; Retrieve new "put" index from .B
-00CD7B  3  8D 28 00     	sta	nx_tx_put_a
+00CD7B  3  8D 68 00     	sta	nx_tx_put_a
 00CD7E  3               ;
 00CD7E  3               ;	ldx	nx_tx_put_a		; TxQ "put" index
 00CD7E  3               ;	inx
@@ -1824,19 +1827,19 @@ Current file: main.asm
 00CD9A  3               ;
 00CD9A  3  EB           	xba				; Save datum to .B
 00CD9B  3               ;
-00CD9B  3  AD 2C 00     	lda	nx_tx_put_b		; Get TxD "put" index
+00CD9B  3  AD 6C 00     	lda	nx_tx_put_b		; Get TxD "put" index
 00CD9E  3  1A           	inc	a			; Increment "put" index
 00CD9F  3  29 7F        	and	#buf_idx_mask		; Deal with wrap
 00CDA1  3               ;
 00CDA1  3               @full:					; Loop here until there is space in TxQ
-00CDA1  3  CD 2A 00     	cmp	nx_tx_get_b		; TxQ "get" index
+00CDA1  3  CD 6A 00     	cmp	nx_tx_get_b		; TxQ "get" index
 00CDA4  3  F0 FB        	beq	@full			; TxQ is full, block...
 00CDA6  3               ;
-00CDA6  3  AE 2C 00     	ldx	nx_tx_put_b
+00CDA6  3  AE 6C 00     	ldx	nx_tx_put_b
 00CDA9  3  EB           	xba				; Restore datum in .A, save new "put"
 00CDAA  3  9D 80 21     	sta	nx_tx_qb, X		; Put datum into TxQ
 00CDAD  3  EB           	xba				; Retrieve new "put" index from .B
-00CDAE  3  8D 2C 00     	sta	nx_tx_put_b
+00CDAE  3  8D 6C 00     	sta	nx_tx_put_b
 00CDB1  3               ;
 00CDB1  3               ;---------------
 00CDB1  3               ;	Manage transmitter
@@ -1922,7 +1925,7 @@ Current file: main.asm
 00CDD8  3               ;---------------------------------------
 00CDD8  3  A2 00        	ldx	#$00
 00CDDA  3               @nextZP:
-00CDDA  3  74 20        	stz	nx_zeropage, X
+00CDDA  3  74 60        	stz	nx_zeropage, X
 00CDDC  3  E8           	inx
 00CDDD  3  E0 20        	cpx	#$20			; Reserve $20 (32) bytes and clear these
 00CDDF  3  D0 F9        	bne	@nextZP
@@ -1940,7 +1943,7 @@ Current file: main.asm
 00CDF1  3               ; Prepare jiffy counter
 00CDF1  3               ;---------------------------------------
 00CDF1  3  A9 64        	lda	#hz
-00CDF3  3  85 20        	sta	nx_jiffycnt
+00CDF3  3  85 60        	sta	nx_jiffycnt
 00CDF5  3               ;
 00CDF5  3               ; Set up the 28L9x IC using the setup/lookup table
 00CDF5  3               ;---------------------------------------
@@ -1983,7 +1986,7 @@ Current file: main.asm
 00CE07  3               ; Before returning, set the nx_driver_init flag
 00CE07  3  A9 80        	lda	#nx_driver_init
 00CE09  3  0C 2C C0     	tsb	NX_IOBASE + dr_misc	; Store this is the dr_misc register
-00CE0C  3  0C 2D 00     	tsb	nx_tx_status
+00CE0C  3  0C 6D 00     	tsb	nx_tx_status
 00CE0F  3               ;
 00CE0F  3  58           	cli				; Enable interrupts
 00CE10  3  18           	clc				; C is cleared, no error
@@ -2090,14 +2093,14 @@ Current file: main.asm
 00CE5A  3  00           	.byte	<(nx_ct_scale/hz)
 00CE5B  3  48           	.byte	>(nx_ct_scale/hz)
 00CE5C  3               ;
-00CE5C  3  20           	.byte	nx_jiffycnt
-00CE5D  3  21           	.byte	nx_uptimecnt
-00CE5E  3  25           	.byte	nx_rx_get_a
-00CE5F  3  27           	.byte	nx_rx_put_a
-00CE60  3  26           	.byte	nx_tx_get_a
-00CE61  3  28           	.byte	nx_tx_put_a
-00CE62  3  2D           	.byte	nx_tx_status
-00CE63  3  2E           	.byte	rom_irq
+00CE5C  3  60           	.byte	nx_jiffycnt
+00CE5D  3  61           	.byte	nx_uptimecnt
+00CE5E  3  65           	.byte	nx_rx_get_a
+00CE5F  3  67           	.byte	nx_rx_put_a
+00CE60  3  66           	.byte	nx_tx_get_a
+00CE61  3  68           	.byte	nx_tx_put_a
+00CE62  3  6D           	.byte	nx_tx_status
+00CE63  3  6E           	.byte	rom_irq
 00CE64  3               
 00CE64  2               ;
 00CE64  2               ;---------------------------------------
@@ -2223,6 +2226,7 @@ Current file: main.asm
 00D000  2               ;
 00D000  2               ;  Version history:
 00D000  2               ;	2020-09-09	- Initial version, for use with Supermon816 monitor
+00D000  2               ;	25 feb 2021	- Consolidate ZP usage (try to make it one block)
 00D000  2               ;
 00D000  2               ; This Intel Hex Downloader is based on/copied from/written by Ross Archer
 00D000  2               ;==============================================================================
@@ -2233,21 +2237,21 @@ Current file: main.asm
 00D000  2               	.org	HEXINTEL
 00D000  2               
 00D000  2               ; Equates
-00D000  2               DPL		= $60			; $60 - Data pointer (two bytes)
-00D000  2               DPH		= DPL + s_byte		; $61 - High byte of data pointer
-00D000  2               RECLEN		= DPH + s_byte		; $62 - Record length in bytes
-00D000  2               START_LO	= RECLEN + s_byte	; $63 - Low byte start address record
-00D000  2               START_HI	= START_LO + s_byte	; $64 - High byte start address record
-00D000  2               RECTYPE		= START_HI + s_byte	; $65 - Record type
-00D000  2               RECCHKSUM	= RECTYPE + s_byte	; $66 - Record checksum accumulator
-00D000  2               DLFAIL		= RECCHKSUM + s_byte	; $67 - Flag for download failure
-00D000  2               TEMP		= DLFAIL + s_byte	; $68 - Save temporary hex value
-00D000  2               PROG_START	= TEMP + s_byte		; $69 - Program start address
+00D000  2               DPL		= $70			; $70 - Data pointer (two bytes)
+00D000  2               DPH		= DPL + s_byte		; $71 - High byte of data pointer
+00D000  2               RECLEN		= DPH + s_byte		; $72 - Record length in bytes
+00D000  2               START_LO	= RECLEN + s_byte	; $73 - Low byte start address record
+00D000  2               START_HI	= START_LO + s_byte	; $74 - High byte start address record
+00D000  2               RECTYPE		= START_HI + s_byte	; $75 - Record type
+00D000  2               RECCHKSUM	= RECTYPE + s_byte	; $76 - Record checksum accumulator
+00D000  2               DLFAIL		= RECCHKSUM + s_byte	; $77 - Flag for download failure
+00D000  2               TEMP		= DLFAIL + s_byte	; $78 - Save temporary hex value
+00D000  2               PROG_START	= TEMP + s_byte		; $79 - Program start address
 00D000  2               
 00D000  2               strtintel:
-00D000  2  9C 67 00     	stz	DLFAIL			; Start by assuming no failure (yet)
-00D003  2  9C 69 00     	stz	PROG_START
-00D006  2  9C 6A 00     	stz	PROG_START + 1
+00D000  2  9C 77 00     	stz	DLFAIL			; Start by assuming no failure (yet)
+00D003  2  9C 79 00     	stz	PROG_START
+00D006  2  9C 7A 00     	stz	PROG_START + 1
 00D009  2               
 00D009  2  F4 02 D1     	pea	mm_strt			; Print prompt
 00D00C  2  20 D9 DF     	jsr	sprint
@@ -2269,39 +2273,39 @@ Current file: main.asm
 00D023  2  D0 EA        	bne	hdwrecs			; not yet?
 00D025  2               	; Start of record marker has been found
 00D025  2  20 DB D0     	jsr	GETHEX			; get record length
-00D028  2  8D 62 00     	sta	RECLEN			; save it
-00D02B  2  8D 66 00     	sta	RECCHKSUM		; And save first byte of chksum
+00D028  2  8D 72 00     	sta	RECLEN			; save it
+00D02B  2  8D 76 00     	sta	RECCHKSUM		; And save first byte of chksum
 00D02E  2  20 DB D0     	jsr	GETHEX			; Get high byte of start address
-00D031  2  8D 64 00     	sta	START_HI
+00D031  2  8D 74 00     	sta	START_HI
 00D034  2  18           	clc
-00D035  2  6D 66 00     	adc	RECCHKSUM		; Add in the chksum
-00D038  2  8D 66 00     	sta	RECCHKSUM
+00D035  2  6D 76 00     	adc	RECCHKSUM		; Add in the chksum
+00D038  2  8D 76 00     	sta	RECCHKSUM
 00D03B  2  20 DB D0     	jsr	GETHEX			; Get low byte of address
-00D03E  2  8D 63 00     	sta	START_LO
+00D03E  2  8D 73 00     	sta	START_LO
 00D041  2  18           	clc
-00D042  2  6D 66 00     	adc	RECCHKSUM
-00D045  2  8D 66 00     	sta	RECCHKSUM
+00D042  2  6D 76 00     	adc	RECCHKSUM
+00D045  2  8D 76 00     	sta	RECCHKSUM
 00D048  2  20 DB D0     	jsr	GETHEX			; Get record type
-00D04B  2  8D 65 00     	sta	RECTYPE
+00D04B  2  8D 75 00     	sta	RECTYPE
 00D04E  2  18           	clc
-00D04F  2  6D 66 00     	adc	RECCHKSUM
-00D052  2  8D 66 00     	sta	RECCHKSUM
-00D055  2  AD 65 00     	lda	RECTYPE
+00D04F  2  6D 76 00     	adc	RECCHKSUM
+00D052  2  8D 76 00     	sta	RECCHKSUM
+00D055  2  AD 75 00     	lda	RECTYPE
 00D058  2  D0 31        	bne	HDER1			; End-Of-Record
-00D05A  2  AE 62 00     	ldx	RECLEN			; Number of bytes to write to memory
+00D05A  2  AE 72 00     	ldx	RECLEN			; Number of bytes to write to memory
 00D05D  2  A0 00        	ldy	#$00			; Start offset at 0
 00D05F  2               HDLP1:
 00D05F  2  20 DB D0     	jsr	GETHEX			; Get data byte
-00D062  2  91 63        	sta	(START_LO), y		; Save it to RAM
+00D062  2  91 73        	sta	(START_LO), y		; Save it to RAM
 00D064  2  18           	clc
-00D065  2  6D 66 00     	adc	RECCHKSUM
-00D068  2  8D 66 00     	sta	RECCHKSUM
+00D065  2  6D 76 00     	adc	RECCHKSUM
+00D068  2  8D 76 00     	sta	RECCHKSUM
 00D06B  2  C8           	iny				; Increment data pointer
 00D06C  2  CA           	dex				; Decrement count
 00D06D  2  D0 F0        	bne	HDLP1			; Continue until counter = 0
 00D06F  2  20 DB D0     	jsr	GETHEX			; get the checksum
 00D072  2  18           	clc
-00D073  2  6D 66 00     	adc	RECCHKSUM
+00D073  2  6D 76 00     	adc	RECCHKSUM
 00D076  2  D0 08        	bne	HDDLF1			; If failed, report it
 00D078  2               ; Another successful record processed
 00D078  2  A9 23        	lda	#'#'			; Record == OK ==> "#"
@@ -2310,7 +2314,7 @@ Current file: main.asm
 00D07D  2  4C 0F D0     	jmp	hdwrecs			; get next record
 00D080  2               HDDLF1:
 00D080  2  A9 46        	lda	#'F'			; Record == Fail ==> "F"
-00D082  2  8D 67 00     	sta	DLFAIL
+00D082  2  8D 77 00     	sta	DLFAIL
 00D085  2               ;	sta	ACIA_DATA
 00D085  2  20 5C CD     	jsr	uart_output
 00D088  2  4C 0F D0     	jmp	hdwrecs
@@ -2320,8 +2324,8 @@ Current file: main.asm
 00D08D  2  F0 15        	beq	HDER2
 00D08F  2  F4 51 D1     	pea	mm_unkn
 00D092  2  20 D9 DF     	jsr	sprint
-00D095  2  AD 65 00     	lda	RECTYPE
-00D098  2  8D 67 00     	sta	DLFAIL
+00D095  2  AD 75 00     	lda	RECTYPE
+00D098  2  8D 77 00     	sta	DLFAIL
 00D09B  2               ;	jsr	PUTHEX
 00D09B  2  20 AD DF     	jsr	dpyhex
 00D09E  2  20 C4 DF     	jsr	newline			; Known entry in ROM ;)
@@ -2330,14 +2334,14 @@ Current file: main.asm
 00D0A4  2               HDER2:
 00D0A4  2  20 DB D0     	jsr	GETHEX			; Get checksum
 00D0A7  2  18           	clc
-00D0A8  2  6D 66 00     	adc	RECCHKSUM		; Add previous .A value
+00D0A8  2  6D 76 00     	adc	RECCHKSUM		; Add previous .A value
 00D0AB  2  F0 07        	beq	HDER3			; CHKSUM = 0 means OK
 00D0AD  2  F4 6B D1     	pea	mm_bad			; Warn user of bad checksum
 00D0B0  2  20 D9 DF     	jsr	sprint
 00D0B3  2  60           	rts
 00D0B4  2               
 00D0B4  2               HDER3:
-00D0B4  2  AD 67 00     	lda	DLFAIL
+00D0B4  2  AD 77 00     	lda	DLFAIL
 00D0B7  2  F0 0A        	beq	HDEROK			; 0 = OK, non-zero = error
 00D0B9  2               
 00D0B9  2  F4 88 D1     	pea	mm_fail
@@ -2349,10 +2353,10 @@ Current file: main.asm
 00D0C3  2               HDEROK:
 00D0C3  2  F4 AF D1     	pea 	mm_succ
 00D0C6  2  20 D9 DF     	jsr	sprint
-00D0C9  2  AD 64 00     	lda	START_HI
+00D0C9  2  AD 74 00     	lda	START_HI
 00D0CC  2               ;	jsr	PUTHEX
 00D0CC  2  20 AD DF     	jsr	dpyhex
-00D0CF  2  AD 63 00     	lda	START_LO
+00D0CF  2  AD 73 00     	lda	START_LO
 00D0D2  2               ;	jsr	PUTHEX
 00D0D2  2  20 AD DF     	jsr	dpyhex
 00D0D5  2  20 C4 DF     	jsr	newline
@@ -2371,10 +2375,10 @@ Current file: main.asm
 00D0E3  2  0A           	asl
 00D0E4  2  0A           	asl				; Now we have the upper nibble
 00D0E5  2  29 F0        	and	#$f0
-00D0E7  2  8D 68 00     	sta	TEMP
+00D0E7  2  8D 78 00     	sta	TEMP
 00D0EA  2  20 10 FD     	jsr	char_in			; Get second nibble
 00D0ED  2  20 F4 D0     	jsr	MKNIBL
-00D0F0  2  0D 68 00     	ora	TEMP
+00D0F0  2  0D 78 00     	ora	TEMP
 00D0F3  2  60           	rts				; Return with complete byte in TEMP
 00D0F4  2               
 00D0F4  2               ;
@@ -7759,7 +7763,7 @@ Current file: main.asm
 00E7EF  2  72 20 41 64  
 00E7F3  2  72 69 61 20  
 00E7F7  2  30 2E 31 2E  	bios_version
-00E7FB  2  32           
+00E7FB  2  33           
 00E7FC  2  29 0D 0A 00  	.byte 	")", CR, LF, $00
 00E800  2               
 00E800  2               mm_err:
@@ -7952,15 +7956,15 @@ Current file: main.asm
 00EA31  2               ;---------------------------------------
 00EA31  2               ZPUsage:
 00EA31  2               ; hexintel
-00EA31  2  60           	.byte	DPL
-00EA32  2  61           	.byte	DPH
-00EA33  2  62           	.byte	RECLEN
-00EA34  2  63           	.byte	START_LO
-00EA35  2  64           	.byte	START_HI
-00EA36  2  65           	.byte	RECTYPE
-00EA37  2  66           	.byte	RECCHKSUM
-00EA38  2  67           	.byte	DLFAIL
-00EA39  2  68           	.byte	TEMP
+00EA31  2  70           	.byte	DPL
+00EA32  2  71           	.byte	DPH
+00EA33  2  72           	.byte	RECLEN
+00EA34  2  73           	.byte	START_LO
+00EA35  2  74           	.byte	START_HI
+00EA36  2  75           	.byte	RECTYPE
+00EA37  2  76           	.byte	RECCHKSUM
+00EA38  2  77           	.byte	DLFAIL
+00EA39  2  78           	.byte	TEMP
 00EA3A  2               ; Monitor
 00EA3A  2  80           	.byte	reg_pbx
 00EA3B  2  81           	.byte	reg_pcx
@@ -8153,22 +8157,22 @@ Current file: main.asm
 00FC11  2               ;-----------------------
 00FC11  2               @handle_ct:
 00FC11  2  AE 2F C0     	ldx	NX_IOBASE + dr_cnt_stop	; Reset C/T IRQ
-00FC14  2  A6 20        	ldx	nx_jiffycnt		; Get jiffy counter
+00FC14  2  A6 60        	ldx	nx_jiffycnt		; Get jiffy counter
 00FC16  2  CA           	dex				; Decrement by one
 00FC17  2  D0 0C        	bne	@upd_jiffy		; Not time, yet, to update uptime
 00FC19  2               ;
 00FC19  2  C2 20        	longa				; 16 bit .A
-00FC1B  2  E6 21        	inc	nx_uptimecnt		; increment uptime LSW
+00FC1B  2  E6 61        	inc	nx_uptimecnt		; increment uptime LSW
 00FC1D  2  D0 02        	bne	@reset_jiffy		; Done with uptime
 00FC1F  2               ;
-00FC1F  2  E6 23        	inc	nx_uptimecnt + s_word	; Increment uptime MSW
+00FC1F  2  E6 63        	inc	nx_uptimecnt + s_word	; Increment uptime MSW
 00FC21  2               ;
 00FC21  2               @reset_jiffy:
 00FC21  2  E2 30        	shortr				; 8 bit .A
 00FC23  2  A2 64        	ldx	#hz			; Reset jiffy count
 00FC25  2               ;
 00FC25  2               @upd_jiffy:
-00FC25  2  86 20        	stx	nx_jiffycnt		; Set new jiffy count value
+00FC25  2  86 60        	stx	nx_jiffycnt		; Set new jiffy count value
 00FC27  2               ;
 00FC27  2               ;-----------------------
 00FC27  2               ; Test for channel A RHR IRQ
@@ -8191,9 +8195,9 @@ Current file: main.asm
 00FC35  2  F0 16        	beq	test_rhr_b		; channel A? Nope: go to B
 00FC37  2               
 00FC37  2  AD 23 C0     	lda	NX_IOBASE + dr_rxfifoa	; YES, read datum from RHR
-00FC3A  2  A6 27        	ldx	nx_rx_put_a		; RxD "put" index
+00FC3A  2  A6 67        	ldx	nx_rx_put_a		; RxD "put" index
 00FC3C  2  E8           	inx				; Increment
-00FC3D  2  E4 25        	cpx	nx_rx_get_a		; Compare with "get" index
+00FC3D  2  E4 65        	cpx	nx_rx_get_a		; Compare with "get" index
 00FC3F  2  F0 F0        	beq	@process_datum		; RxQ is full
 00FC41  2               ;-----------------------
 00FC41  2               ; If RxQ is full, the datum cannot be processed and is lost, corrupting the
@@ -8205,7 +8209,7 @@ Current file: main.asm
 00FC45  2  8A           	txa
 00FC46  2  1A           	inc	a			; Increment RxD "put" index
 00FC47  2  29 7F        	and	#buf_idx_mask		; Deal with index wrap
-00FC49  2  85 27        	sta	nx_rx_put_a		; Save new "put" index
+00FC49  2  85 67        	sta	nx_rx_put_a		; Save new "put" index
 00FC4B  2               ;
 00FC4B  2  80 E4        	bra	@process_datum		; Loop for next
 00FC4D  2               test_rhr_b:
@@ -8224,14 +8228,14 @@ Current file: main.asm
 00FC55  2               ; Process channel A THR IRQ
 00FC55  2               ;-----------------------
 00FC55  2               @handle_thr_a:
-00FC55  2  A6 26        	ldx	nx_tx_get_a		; Get current TxQ "get" index
+00FC55  2  A6 66        	ldx	nx_tx_get_a		; Get current TxQ "get" index
 00FC57  2  A0 04        	ldy	#msk_sr_tx_rdy		; THR status mask
 00FC59  2               ;-----------------------
 00FC59  2               ; Enter the loop to service the THR interrupt. This loop will continue until
 00FC59  2               ; the THR is full or TxQ is empty
 00FC59  2               ;-----------------------
 00FC59  2               @next_datum:
-00FC59  2  E4 28        	cpx	nx_tx_put_a		; Any (new) datums in TxQ?
+00FC59  2  E4 68        	cpx	nx_tx_put_a		; Any (new) datums in TxQ?
 00FC5B  2  F0 15        	beq	@tx_off			; Nope, shutdown Xmitter and go to B
 00FC5D  2               ;
 00FC5D  2  98           	tya				; YES ...
@@ -8248,7 +8252,7 @@ Current file: main.asm
 00FC6A  2  1A           	inc	a			; Increment "get" index
 00FC6B  2  29 7F        	and	#buf_idx_mask		; Deal with wrap?
 00FC6D  2  AA           	tax				; move .A back to .X
-00FC6E  2  86 26        	stx	nx_tx_get_a		; Intermediate save "get" index
+00FC6E  2  86 66        	stx	nx_tx_get_a		; Intermediate save "get" index
 00FC70  2  80 E7        	bra	@next_datum		; And process next
 00FC72  2               ;
 00FC72  2               @tx_off:
@@ -8256,10 +8260,10 @@ Current file: main.asm
 00FC74  2  8D 22 C0     	sta	NX_IOBASE + dr_cra	; ... IRQs
 00FC77  2  A9 40        	lda	#nx_txa_dis		; Set Xmitter A disabled flag
 00FC79  2  0C 2C C0     	tsb	NX_IOBASE + dr_misc	; Do in MISC register!
-00FC7C  2  04 2D        	tsb	nx_tx_status		; And in ZP (for debug)
+00FC7C  2  04 6D        	tsb	nx_tx_status		; And in ZP (for debug)
 00FC7E  2               ;
 00FC7E  2               @done:
-00FC7E  2  86 26        	stx	nx_tx_get_a		; Save final TxQ "get" index
+00FC7E  2  86 66        	stx	nx_tx_get_a		; Save final TxQ "get" index
 00FC80  2               ;
 00FC80  2               test_thr_b:
 00FC80  2  A3 01        	lda	irq_isrx, S
@@ -8687,7 +8691,7 @@ Current file: main.asm
 00FF4C  2  69 6F 6E 3A  
 00FF50  2  20           
 00FF51  2  30 2E 31 2E  	bios_version
-00FF55  2  32           
+00FF55  2  33           
 00FF56  2  20 2D 20 58  	.byte	" - Xander Maas, 2021", LF, CR
 00FF5A  2  61 6E 64 65  
 00FF5E  2  72 20 4D 61  

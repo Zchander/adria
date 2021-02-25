@@ -4,6 +4,7 @@
 ; Version history:
 ;	05 Jan 2021	- Initial version
 ;	08 feb 2021	- Some minor changes to interrupt handlers
+;	25 feb 2021	- Consolidate ZP usage (try to make it one block)
 ;=======================================================================
 ; Assembly related variables (for conditional assembly)
 ;---------------------------------------
@@ -18,7 +19,7 @@ SYSCLK		=	OSCCLK / 4	; Clock speed of PHI2
 	.byte	'.'
 	.byte	'1'			; Minor
 	.byte	'.'
-	.byte	'2'			; Revision
+	.byte	'3'			; Revision
 	.endmacro
 	
 	.macro	longi			; Set .X and .Y to 16-bit

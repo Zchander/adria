@@ -3,6 +3,7 @@
 ;
 ;  Version history:
 ;	2020-09-09	- Initial version, for use with Supermon816 monitor
+;	25 feb 2021	- Consolidate ZP usage (try to make it one block)
 ;
 ; This Intel Hex Downloader is based on/copied from/written by Ross Archer
 ;==============================================================================
@@ -13,16 +14,16 @@
 	.org	HEXINTEL
 
 ; Equates
-DPL		= $60			; $60 - Data pointer (two bytes)
-DPH		= DPL + s_byte		; $61 - High byte of data pointer
-RECLEN		= DPH + s_byte		; $62 - Record length in bytes
-START_LO	= RECLEN + s_byte	; $63 - Low byte start address record
-START_HI	= START_LO + s_byte	; $64 - High byte start address record
-RECTYPE		= START_HI + s_byte	; $65 - Record type
-RECCHKSUM	= RECTYPE + s_byte	; $66 - Record checksum accumulator
-DLFAIL		= RECCHKSUM + s_byte	; $67 - Flag for download failure
-TEMP		= DLFAIL + s_byte	; $68 - Save temporary hex value
-PROG_START	= TEMP + s_byte		; $69 - Program start address
+DPL		= $70			; $70 - Data pointer (two bytes)
+DPH		= DPL + s_byte		; $71 - High byte of data pointer
+RECLEN		= DPH + s_byte		; $72 - Record length in bytes
+START_LO	= RECLEN + s_byte	; $73 - Low byte start address record
+START_HI	= START_LO + s_byte	; $74 - High byte start address record
+RECTYPE		= START_HI + s_byte	; $75 - Record type
+RECCHKSUM	= RECTYPE + s_byte	; $76 - Record checksum accumulator
+DLFAIL		= RECCHKSUM + s_byte	; $77 - Flag for download failure
+TEMP		= DLFAIL + s_byte	; $78 - Save temporary hex value
+PROG_START	= TEMP + s_byte		; $79 - Program start address
 
 strtintel:
 	stz	DLFAIL			; Start by assuming no failure (yet)

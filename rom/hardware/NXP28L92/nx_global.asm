@@ -8,6 +8,8 @@
 ;		26 jan 2021 	- Initial version
 ;		18 feb 2021 	- Userland driver seems to work, migrating to
 ;				  ROM based driver
+;		25 feb 2021	- Consolidate ZP usage (try to make it one 
+;				  block)
 ;===============================================================================
 ; GENERIC
 ;=======================================
@@ -174,7 +176,7 @@ hz		= 100			; Frequency of C/T IRQs (in Hz)
 ;---------------------------------------
 ; 	Zeropage / Direct Page
 ;---------------
-nx_zeropage	= $20			; We use ZP from $20
+nx_zeropage	= $60			; We use ZP from $60
 nx_jiffycnt	= nx_zeropage		; Jiffy counter
 ;---------------
 ;	Uptime is little endian!
