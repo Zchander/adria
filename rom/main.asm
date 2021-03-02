@@ -68,7 +68,7 @@ _incl_intel:
 ; Supermon 816
 _incl_monitor:
 	.res		SYSMONITOR - *, $00
-	.include	"supermon816/monitor.asm"
+	.include	"apps/supermon816/monitor.asm"
 
 ; Interrupt Service Routines
 _incl_isr:
