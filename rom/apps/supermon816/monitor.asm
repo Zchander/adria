@@ -141,7 +141,7 @@
 	.byte "."
 	.byte "0"             		; minor
 	.byte "."
-	.byte "3"             		; revision
+	.byte "4"             		; revision
 	.endmacro
          
 ;------------------------------------------------------------------------------
@@ -164,7 +164,10 @@
 ;				   stack, before actually printing char. When 
 ;				   returned, we reset the register widths and
 ;				   retrieve the .Y
-;
+;  1.0.4	08 mar 2021	A) line 680 - Corrected value of mne_waix. Was
+;				   $21, but should be #32
+;				B) line 4244 - Forgot to branch when stopkey was
+;				   found
 ;------------------------------------------------------------------------------
 ;
 ;
@@ -677,7 +680,7 @@ mne_txsx	= 69			; TXS
 mne_txyx	= 90			; XXY
 mne_tyax	= 9			; TYA
 mne_tyxx	= 81			; TYX
-mne_waix	= 21			; WAI
+mne_waix	= 32			; WAI
 mne_wdmx	= 47			; WDM
 mne_xbax	= 0			; XBA
 mne_xcex	= 30			; XCE
@@ -4241,7 +4244,7 @@ teststop:
 	bcs	@a			; No input
 	
 	cmp	#stopkey
-
+	beq	@b			
 @a:
 	clc
 	

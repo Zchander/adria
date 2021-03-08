@@ -347,9 +347,13 @@ nx_irq_msk	= nx_irq_a | nx_irq_b | msk_irq_ct
 ;---------------
 ; 	MR0 - Mode 0 Register
 ;---------------
-nx_mr0		= %11001000
+;nx_mr0		= %11001000
+nx_mr0		= %11001001
 ;		   ||||||||
-;		   |||||+++----> Baud rate: Normal mode
+;		   |||||+++----> Baud rate: (See datasheet table 24 and 35)
+;		   |||||	 		000 - Normal mode
+;		   |||||			001 - Extended mode I
+;		   |||||			100 - Extended mode II
 ;		   ||||+-------> 16-deep FIFO
 ;		   ||++--------> TxD interrupts only when FIFO is empty
 ;		   |+----------> RxD interrupts only when FIFO is full 

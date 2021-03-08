@@ -47,9 +47,9 @@
 ;###################
 ; Size table header row
 ;###################
-	.out .concat("                                  Start      End      Size   (Decimal)")
-	.out .concat("                                  -----      ----     -----  ---------")
-
+	.out .concat("                                  Start      End      Size   (Decimal)	Free	(Decimal)")
+	.out .concat("                                  -----      ----     -----   ------- 	-----	 ------- ")
+ 
 ; UART driver(s)
 ;=======================
 ; In order to support multiple UART options (e.g. 6551, NXP SC28L92), replace
@@ -84,4 +84,20 @@ _incl_isr:
 _incl_reset:	
 	.res		RESET_ROUTINES - *, $00
 	.include	"ROM/reset.asm"
-	
+		
+_space_io	= UART_DRIVER - $c800
+_space_uart	= HEXINTEL - _uart_end
+_space_intel	= SYSMONITOR - _intel_end
+_space_mon	= ISR - _mon_end
+_space_isr	= RESET_ROUTINES - _isr_end
+
+	.out .concat("-------------------------------------------------------------------------------------------------- ")
+	.out .concat("Space free I/O                 : ", .sprintf("%04x", _space_io))
+	.out .concat("Space free UART                : ", .sprintf("%04x", _space_uart))
+	.out .concat("Space free Intel Hex Uploader  : ", .sprintf("%04x", _space_intel))
+	.out .concat("Space free Supermon816         : ", .sprintf("%04x", _space_mon))
+	.out .concat("Space free ISR                 : ", .sprintf("%04x", _space_isr))
+	.out .concat("                                 --------")
+	.out .concat("                                 ", .sprintf("%04x", _space_io + _space_uart + _space_intel + _space_mon + _space_isr), " (", .sprintf("%05d", _space_uart + _space_intel + _space_mon + _space_isr) ,")")
+
+;=======================================================================

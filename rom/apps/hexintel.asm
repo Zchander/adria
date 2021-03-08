@@ -241,8 +241,7 @@ mm_cancel:
 ;---------------------------------------
 ; Used to calculate memory footprint of the module
 ;---------------------------------------
-INTEL_END	= *			; Must be declared before any
+_intel_end	= *			; Must be declared before any
 					; calculations
-INTEL_SIZE	= INTEL_END - HEXINTEL
-	.out .concat("Intel hex uploader                $", .sprintf("%04x", HEXINTEL), "      $", .sprintf("%04x", INTEL_END), "    $", .sprintf("%04x", INTEL_SIZE), "  (", .sprintf("%05d", INTEL_SIZE), ")")
-;	.out .concat("---- Size of INTEL Hex uploader:                 $", .sprintf("%04x", INTEL_SIZE), " (", .sprintf("%5d", INTEL_SIZE), ")")
+_intel_size	= _intel_end - HEXINTEL
+	.out .concat("Intel hex uploader                $", .sprintf("%04x", HEXINTEL), "      $", .sprintf("%04x", _intel_end), "    $", .sprintf("%04x", _intel_size), "  (", .sprintf("%05d", _intel_size), ")")

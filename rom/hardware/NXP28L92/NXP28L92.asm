@@ -74,6 +74,6 @@ NX_USERDRIVER		= 0
 ; Calculation of usage
 _uart_end	=	*
 _uart_size 	=	_uart_end - UART_DRIVER
+_uart_free	=	_uart_end - _uart_size
 	.out .concat("UART driver                       $", .sprintf("%04x", UART_DRIVER), "      $", .sprintf("%04x", _uart_end), "    $", .sprintf("%04x", _uart_size), "  (", .sprintf("%05d", _uart_size), ")")
-;	.out	.concat("---- Size of UART (28L92) routines:   $", .sprintf("%04x", _uart_size), "(", .sprintf("%05d", _uart_size), ")")
 ;=======================================================================

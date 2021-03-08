@@ -1,0 +1,5 @@
+Who	Date	  	Line	Description
+---- 	----------   	-----	-------------------------------------
+[XM]	08 03 2021	00138	Updated revision
+[XM]	08 03 2021	00680	Incorrect value of mne_waix (was 21 => is 32)
+[XM] 	08 03 2021	04244	Forgot to branch if stopkey was found

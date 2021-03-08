@@ -1,0 +1,13 @@
+08 Mar 2021	Added ehBasic 2.22p5. Unfortunately there is not enough space 
+		free (currently) in ROM. 
+		You can assemble this version with CA65:
+			
+			cl65 -t none -o ehbasic.bin ehbasic2_22p5.asm
+			
+		To upload ehBASIC to Adria, you have to convert it first to
+		Intel Hex. I used bin2hex.py:
+			
+			bin2hex.py --offset 37888 ehbasic.bin ehbasic.hex
+			
+		Open the ehbasic.hex file, copy the text and paste this into
+		the monitor, after typing L

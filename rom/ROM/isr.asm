@@ -205,8 +205,7 @@ iirq_end:
 ;---------------------------------------
 ; Used to calculate memory footprint of the module
 ;---------------------------------------
-ISR_END		= *			; Must be declared before any
+_isr_end	= *			; Must be declared before any
 					; calculations
-ISR_SIZE	= ISR_END - ISR
-	.out .concat("Interrupt Service Routine(s)      $", .sprintf("%04x", ISR), "      $", .sprintf("%04x", ISR_END), "    $", .sprintf("%04x", ISR_SIZE), "  (", .sprintf("%05d", ISR_SIZE), ")")
-;	.out .concat("---- Size of ISR uploader:                 $", .sprintf("%04x", ISR_SIZE), " (", .sprintf("%5d", ISR_SIZE), ")")
+_isr_size	= _isr_end - ISR
+	.out .concat("Interrupt Service Routine(s)      $", .sprintf("%04x", ISR), "      $", .sprintf("%04x", _isr_end), "    $", .sprintf("%04x", _isr_size), "  (", .sprintf("%05d", _isr_size), ")")

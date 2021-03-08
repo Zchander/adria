@@ -261,8 +261,8 @@ Current file: main.asm
 00C000  1               ;###################
 00C000  1               ; Size table header row
 00C000  1               ;###################
-00C000  1               	.out .concat("                                  Start      End      Size   (Decimal)")
-00C000  1               	.out .concat("                                  -----      ----     -----  ---------")
+00C000  1               	.out .concat("                                  Start      End      Size   (Decimal)	Free	(Decimal)")
+00C000  1               	.out .concat("                                  -----      ----     -----   ------- 	-----	 ------- ")
 00C000  1               
 00C000  1               ; UART driver(s)
 00C000  1               ;=======================
@@ -1574,9 +1574,13 @@ Current file: main.asm
 00CD00  3               ;---------------
 00CD00  3               ; 	MR0 - Mode 0 Register
 00CD00  3               ;---------------
-00CD00  3               nx_mr0		= %11001000
+00CD00  3               ;nx_mr0		= %11001000
+00CD00  3               nx_mr0		= %11001001
 00CD00  3               ;		   ||||||||
-00CD00  3               ;		   |||||+++----> Baud rate: Normal mode
+00CD00  3               ;		   |||||+++----> Baud rate: (See datasheet table 24 and 35)
+00CD00  3               ;		   |||||	 		000 - Normal mode
+00CD00  3               ;		   |||||			001 - Extended mode I
+00CD00  3               ;		   |||||			100 - Extended mode II
 00CD00  3               ;		   ||||+-------> 16-deep FIFO
 00CD00  3               ;		   ||++--------> TxD interrupts only when FIFO is empty
 00CD00  3               ;		   |+----------> RxD interrupts only when FIFO is full
@@ -2023,7 +2027,7 @@ Current file: main.asm
 00CE1C  3  08 17        	.byte	dr_mrb, nx_mr2		; MR2 - Set Mode Register 2
 00CE1E  3  08 D3        	.byte	dr_mrb, nx_mr1		; MR1 - Set Mode Register 1
 00CE20  3  0A 10        	.byte	dr_crb, nx_cr_mr1	; CRA - Select Mode Register 1
-00CE22  3  08 C8        	.byte	dr_mrb, nx_mr0		; MR0 - Set Memory Register 0
+00CE22  3  08 C9        	.byte	dr_mrb, nx_mr0		; MR0 - Set Memory Register 0
 00CE24  3  0A B0        	.byte	dr_crb, nx_cr_mr0	; CRA - Select Mode Register 0
 00CE26  3               ;---------------------------------------
 00CE26  3               ; Port B
@@ -2042,7 +2046,7 @@ Current file: main.asm
 00CE2C  3  00 17        	.byte	dr_mra, nx_mr2		; MR2 - Set Mode Register 2
 00CE2E  3  00 D3        	.byte	dr_mra, nx_mr1		; MR1 - Set Mode Register 1
 00CE30  3  02 10        	.byte	dr_cra, nx_cr_mr1	; CRA - Select Mode Register 1
-00CE32  3  00 C8        	.byte	dr_mra, nx_mr0		; MR0 - Set Memory Register 0
+00CE32  3  00 C9        	.byte	dr_mra, nx_mr0		; MR0 - Set Memory Register 0
 00CE34  3  02 B0        	.byte	dr_cra, nx_cr_mr0	; CRA - Select Mode Register 0
 00CE36  3               ;---------------------------------------
 00CE36  3               ; Port A
@@ -2110,8 +2114,8 @@ Current file: main.asm
 00CE64  2               ; Calculation of usage
 00CE64  2               _uart_end	=	*
 00CE64  2               _uart_size 	=	_uart_end - UART_DRIVER
+00CE64  2               _uart_free	=	_uart_end - _uart_size
 00CE64  2               	.out .concat("UART driver                       $", .sprintf("%04x", UART_DRIVER), "      $", .sprintf("%04x", _uart_end), "    $", .sprintf("%04x", _uart_size), "  (", .sprintf("%05d", _uart_size), ")")
-00CE64  2               ;	.out	.concat("---- Size of UART (28L92) routines:   $", .sprintf("%04x", _uart_size), "(", .sprintf("%05d", _uart_size), ")")
 00CE64  2               ;=======================================================================
 00CE64  2               
 00CE64  1               
@@ -2517,11 +2521,10 @@ Current file: main.asm
 00D21E  2               ;---------------------------------------
 00D21E  2               ; Used to calculate memory footprint of the module
 00D21E  2               ;---------------------------------------
-00D21E  2               INTEL_END	= *			; Must be declared before any
+00D21E  2               _intel_end	= *			; Must be declared before any
 00D21E  2               					; calculations
-00D21E  2               INTEL_SIZE	= INTEL_END - HEXINTEL
-00D21E  2               	.out .concat("Intel hex uploader                $", .sprintf("%04x", HEXINTEL), "      $", .sprintf("%04x", INTEL_END), "    $", .sprintf("%04x", INTEL_SIZE), "  (", .sprintf("%05d", INTEL_SIZE), ")")
-00D21E  2               ;	.out .concat("---- Size of INTEL Hex uploader:                 $", .sprintf("%04x", INTEL_SIZE), " (", .sprintf("%5d", INTEL_SIZE), ")")
+00D21E  2               _intel_size	= _intel_end - HEXINTEL
+00D21E  2               	.out .concat("Intel hex uploader                $", .sprintf("%04x", HEXINTEL), "      $", .sprintf("%04x", _intel_end), "    $", .sprintf("%04x", _intel_size), "  (", .sprintf("%05d", _intel_size), ")")
 00D21E  2               
 00D21E  1               
 00D21E  1               ; Supermon 816
@@ -2590,7 +2593,7 @@ Current file: main.asm
 00D312  1  00 00 00 00  
 00D316  1  00 00 00 00  
 00D31A  1  00 00 00     
-00D800  1               	.include	"supermon816/monitor.asm"
+00D800  1               	.include	"apps/supermon816/monitor.asm"
 00D800  2               ;==============================================================================
 00D800  2               ;  A D R I A
 00D800  2               ;  A modular computer
@@ -2734,7 +2737,7 @@ Current file: main.asm
 00D800  2               	.byte "."
 00D800  2               	.byte "0"             		; minor
 00D800  2               	.byte "."
-00D800  2               	.byte "3"             		; revision
+00D800  2               	.byte "4"             		; revision
 00D800  2               	.endmacro
 00D800  2               
 00D800  2               ;------------------------------------------------------------------------------
@@ -2757,7 +2760,10 @@ Current file: main.asm
 00D800  2               ;				   stack, before actually printing char. When
 00D800  2               ;				   returned, we reset the register widths and
 00D800  2               ;				   retrieve the .Y
-00D800  2               ;
+00D800  2               ;  1.0.4	08 mar 2021	A) line 680 - Corrected value of mne_waix. Was
+00D800  2               ;				   $21, but should be #32
+00D800  2               ;				B) line 4244 - Forgot to branch when stopkey was
+00D800  2               ;				   found
 00D800  2               ;------------------------------------------------------------------------------
 00D800  2               ;
 00D800  2               ;
@@ -3270,7 +3276,7 @@ Current file: main.asm
 00D800  2               mne_txyx	= 90			; XXY
 00D800  2               mne_tyax	= 9			; TYA
 00D800  2               mne_tyxx	= 81			; TYX
-00D800  2               mne_waix	= 21			; WAI
+00D800  2               mne_waix	= 32			; WAI
 00D800  2               mne_wdmx	= 47			; WDM
 00D800  2               mne_xbax	= 0			; XBA
 00D800  2               mne_xcex	= 30			; XCE
@@ -3403,7 +3409,7 @@ Current file: main.asm
 00D839  2               ;------------------------------------------------------------------------------
 00D839  2               ; Print startup banner
 00D839  2               ;------------------------------------------------------------------------------
-00D839  2  F4 C7 E7     	pea	mm_entry		; "...ready..."
+00D839  2  F4 C9 E7     	pea	mm_entry		; "...ready..."
 00D83C  2  80 22        	bra	moncom
 00D83E  2               
 00D83E  2               ;------------------------------------------------------------------------------
@@ -3456,7 +3462,7 @@ Current file: main.asm
 00D858  2  E2 20        	shorta
 00D85A  2  68           	pla
 00D85B  2  85 80        	sta	reg_pbx			; Save PB
-00D85D  2  F4 BF E7     	pea	mm_brk			; *BRK
+00D85D  2  F4 C1 E7     	pea	mm_brk			; *BRK
 00D860  2               
 00D860  2               ;------------------------------------------------------------------------------
 00D860  2               ; moncom: Common Entry Pointer
@@ -3488,7 +3494,7 @@ Current file: main.asm
 00D873  2  4C FF D8     	jmp	monerr			; Error if called with a parameter
 00D876  2               
 00D876  2               @a:
-00D876  2  F4 0A E8     	pea	mm_regs
+00D876  2  F4 0C E8     	pea	mm_regs
 00D879  2  20 D9 DF     	jsr	sprint			; Display heading
 00D87C  2               ;------------------------------------------------------------------------------
 00D87C  2               ; Display Program bank and Program Counter
@@ -3565,7 +3571,7 @@ Current file: main.asm
 00D8C4  2  E2 30        	shortr				; 8-bit .A, .X and .Y
 00D8C6  2               
 00D8C6  2  85 AD        	sta	ibufidx			; (Re)set buffer index
-00D8C8  2  F4 06 E8     	pea	mm_prmpt
+00D8C8  2  F4 08 E8     	pea	mm_prmpt
 00D8CB  2  20 D9 DF     	jsr	sprint			; Display input prompt
 00D8CE  2  20 F0 E3     	jsr	input			; Wait for some input
 00D8D1  2               
@@ -3579,7 +3585,7 @@ Current file: main.asm
 00D8DA  2  A2 0D        	ldx	#n_mpctab - 1		; Number of primary commands
 00D8DC  2               
 00D8DC  2               @b:
-00D8DC  2  DD 6C E4     	cmp	mpctab, X		; Search primary command list
+00D8DC  2  DD 6E E4     	cmp	mpctab, X		; Search primary command list
 00D8DF  2  D0 0E        	bne	@c
 00D8E1  2               
 00D8E1  2  8A           	txa				; Get index number
@@ -3588,7 +3594,7 @@ Current file: main.asm
 00D8E4  2               
 00D8E4  2  C2 20        	longa				; 16-bit .A
 00D8E6  2               
-00D8E6  2  BD 7A E4     	lda	mpcextab, X		; Command address - 1
+00D8E6  2  BD 7C E4     	lda	mpcextab, X		; Command address - 1
 00D8E9  2               
 00D8E9  2  48           	pha				; Throw on stack
 00D8EA  2               
@@ -3603,7 +3609,7 @@ Current file: main.asm
 00D8F2  2  A2 03        	ldx	#n_radix - 1		; Number of radices
 00D8F4  2               
 00D8F4  2               @d:
-00D8F4  2  DD AA E4     	cmp	radxtab, X		; Search conversion command list
+00D8F4  2  DD AC E4     	cmp	radxtab, X		; Search conversion command list
 00D8F7  2  D0 03        	bne	@e
 00D8F9  2               
 00D8F9  2  4C 53 DD     	jmp	monenv			; Convert and display parameter
@@ -3849,7 +3855,7 @@ Current file: main.asm
 00D9F1  2               
 00D9F1  2  C2 20        	longa				; 16-bit .A for 16-bit compare
 00D9F3  2               
-00D9F3  2  B9 B7 E4     	lda	mnetab, Y		; Get mnemonic from table
+00D9F3  2  B9 B9 E4     	lda	mnetab, Y		; Get mnemonic from table
 00D9F6  2  C5 B6        	cmp	mnepck			; Compare to entered mnemonic
 00D9F8  2               
 00D9F8  2  E2 20        	shorta				; Back to 8-bit .A
@@ -3868,7 +3874,7 @@ Current file: main.asm
 00DA04  2  A2 00        	ldx	#$00			; Trial opcode
 00DA06  2               
 00DA06  2               @c:
-00DA06  2  DD 6F E5     	cmp	mnetabidx, X		; Search index table ...
+00DA06  2  DD 71 E5     	cmp	mnetabidx, X		; Search index table ...
 00DA09  2  F0 05        	beq	@e			; ... for a match
 00DA0B  2               
 00DA0B  2               @d:
@@ -3901,7 +3907,7 @@ Current file: main.asm
 00DA21  2               
 00DA21  2  C2 20        	longa				; 16-Bit .A
 00DA23  2               
-00DA23  2  B9 73 E7     	lda	ms_lutab, Y		; Mode lookup table
+00DA23  2  B9 75 E7     	lda	ms_lutab, Y		; Mode lookup table
 00DA26  2  85 92        	sta	addrb			; Set pointer
 00DA28  2               
 00DA28  2  E2 20        	shorta				; 8-Bit .A
@@ -4241,7 +4247,7 @@ Current file: main.asm
 00DB99  2  8B           	phb				; Get and ...
 00DB9A  2  68           	pla				; ... save ...
 00DB9B  2  85 8E        	sta	reg_dbx			; ... return DB
-00DB9D  2  F4 40 E8     	pea	mm_rts			; "*RET"
+00DB9D  2  F4 42 E8     	pea	mm_rts			; "*RET"
 00DBA0  2  4C 60 D8     	jmp	moncom			; Return to monitor
 00DBA3  2               
 00DBA3  2               ;------------------------------------------------------------------------------
@@ -4629,7 +4635,7 @@ Current file: main.asm
 00DD6A  2  20 B7 DF     	jsr	multspc			; Print the <Space>s
 00DD6D  2  FA           	plx				; Get radix index back, but ...
 00DD6E  2  DA           	phx				; ... put it backa
-00DD6F  2  BD AA E4     	lda	radxtab, X		; Get radix
+00DD6F  2  BD AC E4     	lda	radxtab, X		; Get radix
 00DD72  2  20 B9 E0     	jsr	binasc			; Convert to ASCII
 00DD75  2  5A           	phy				; String address MSB
 00DD76  2  DA           	phx				; String address LSB
@@ -4660,10 +4666,10 @@ Current file: main.asm
 00DD8B  2               
 00DD8B  2               @a:
 00DD8B  2  20 84 E2     	jsr	facasize		; Get parameter size
-00DD8E  2  D9 AE E4     	cmp	rcvltab, Y		; Check against size table
+00DD8E  2  D9 B0 E4     	cmp	rcvltab, Y		; Check against size table
 00DD91  2  B0 2A        	bcs	@e			; Out of range -> error
 00DD93  2               
-00DD93  2  B9 AE E4     	lda	rcvltab, Y		; Determine number of bytes ...
+00DD93  2  B9 B0 E4     	lda	rcvltab, Y		; Determine number of bytes ...
 00DD96  2  C9 03        	cmp	#s_word + 1		; ... to store
 00DD98  2  66 A4        	ror	facc + s_byte		; Condition flag
 00DD9A  2  10 02        	bpl	@b			; We are asking for an 8-bit register
@@ -4903,13 +4909,13 @@ Current file: main.asm
 00DE4F  2               ; Decode mnemonic and addressing mode
 00DE4F  2               ;------------------------------------------------------------------------------
 00DE4F  2  A6 B8        	ldx	opcode			; Current mnemonic
-00DE51  2  BD 6F E5     	lda	mnetabidx, X		; Get mnemonic index
+00DE51  2  BD 71 E5     	lda	mnetabidx, X		; Get mnemonic index
 00DE54  2  0A           	asl				; Double for ...
 00DE55  2  A8           	tay				; ... mnemonic tabel offset
 00DE56  2               
 00DE56  2  C2 20        	longa				; 16-bit .A
 00DE58  2               
-00DE58  2  B9 B7 E4     	lda	mnetab, Y		; Copy encoded mnemonic to ...
+00DE58  2  B9 B9 E4     	lda	mnetab, Y		; Copy encoded mnemonic to ...
 00DE5B  2  85 B6        	sta	mnepck			; ... working storage
 00DE5D  2               
 00DE5D  2  E2 20        	shorta				; Back to 8-bit .A
@@ -4937,7 +4943,7 @@ Current file: main.asm
 00DE79  2  A0 03        	ldy	#n_vopidx - 1		; Opcodes to test
 00DE7B  2               
 00DE7B  2               @b:
-00DE7B  2  D9 6F E7     	cmp	vopidx, Y		; looking for LDX #, CPY #, etc...
+00DE7B  2  D9 71 E7     	cmp	vopidx, Y		; looking for LDX #, CPY #, etc...
 00DE7E  2  F0 07        	beq	@d			; Disassemle a 16-bit operand
 00DE80  2               
 00DE80  2  88           	dey
@@ -5037,7 +5043,7 @@ Current file: main.asm
 00DEF1  2               
 00DEF1  2  C2 20        	longa				; 16-Bit .A
 00DEF3  2               
-00DEF3  2  BD 73 E7     	lda	ms_lutab, X		; Addressing symbol pointer
+00DEF3  2  BD 75 E7     	lda	ms_lutab, X		; Addressing symbol pointer
 00DEF6  2  48           	pha
 00DEF7  2               
 00DEF7  2  E2 20        	shorta				; 8-Bit .A
@@ -5065,7 +5071,7 @@ Current file: main.asm
 00DF18  2               
 00DF18  2  64 C1        	stz	vopsflag		; Reset
 00DF1A  2  5A           	phy				; Protect operand index
-00DF1B  2  F4 AC E7     	pea	ms_move
+00DF1B  2  F4 AE E7     	pea	ms_move
 00DF1E  2  20 D9 DF     	jsr	sprint			; Display MVN/MVP operand reperator
 00DF21  2  7A           	ply				; Recover operand index
 00DF22  2  80 E7        	bra	@c			; Continue
@@ -5166,7 +5172,7 @@ Current file: main.asm
 00DF84  2               ; dpyerr: Display Error Signal
 00DF84  2               ;------------------------------------------------------------------------------
 00DF84  2               dpyerr:
-00DF84  2  F4 00 E8     	pea	mm_err			; "*ERR*"
+00DF84  2  F4 02 E8     	pea	mm_err			; "*ERR*"
 00DF87  2               
 00DF87  2               dpyerraa:
 00DF87  2  20 D9 DF     	jsr	sprint
@@ -5176,7 +5182,7 @@ Current file: main.asm
 00DF8B  2               ; gendbs: Generate Destructive <Backspace>
 00DF8B  2               ;------------------------------------------------------------------------------
 00DF8B  2               gendbs:
-00DF8B  2  F4 BA E7     	pea	dc_bs			; Destructive <Backspace>
+00DF8B  2  F4 BC E7     	pea	dc_bs			; Destructive <Backspace>
 00DF8E  2  80 F7        	bra	dpyerraa
 00DF90  2               
 00DF90  2               ;------------------------------------------------------------------------------
@@ -5273,7 +5279,7 @@ Current file: main.asm
 00DFC4  2               ; newline: Print Newline (<CR><LF>)
 00DFC4  2               ;------------------------------------------------------------------------------
 00DFC4  2               newline:
-00DFC4  2  F4 BC E7     	pea	dc_lf
+00DFC4  2  F4 BE E7     	pea	dc_lf
 00DFC7  2  80 BE        	bra	dpyerraa
 00DFC9  2               
 00DFC9  2               ;------------------------------------------------------------------------------
@@ -5414,7 +5420,7 @@ Current file: main.asm
 00E008  2  A2 03        	ldx	#n_radix - 1		; Number of radices
 00E00A  2               
 00E00A  2               @b:
-00E00A  2  DD AA E4     	cmp	radxtab, X		; Recognized radix?
+00E00A  2  DD AC E4     	cmp	radxtab, X		; Recognized radix?
 00E00D  2  F0 06        	beq	@c			; Yes
 00E00F  2               
 00E00F  2  CA           	dex
@@ -5430,9 +5436,9 @@ Current file: main.asm
 00E019  2  66 B0        	ror	radix			; Flag decimal conversion
 00E01B  2               
 00E01B  2               @d:
-00E01B  2  BD 96 E4     	lda	basetab, X		; Number bases table
+00E01B  2  BD 98 E4     	lda	basetab, X		; Number bases table
 00E01E  2  85 C0        	sta	range			; Set valid numeral range
-00E020  2  BD 9A E4     	lda	bitsdtab, X		; Get bits per digit
+00E020  2  BD 9C E4     	lda	bitsdtab, X		; Get bits per digit
 00E023  2  85 AE        	sta	bitsdig			; Store
 00E025  2               
 00E025  2               ;------------------------------------------------------------------------------
@@ -5637,7 +5643,7 @@ Current file: main.asm
 00E0C3  2  A2 03        	ldx	#n_radix - 1		; Total radices
 00E0C5  2               
 00E0C5  2               @a:
-00E0C5  2  DD AA E4     	cmp	radxtab, X		; Recognized radix?
+00E0C5  2  DD AC E4     	cmp	radxtab, X		; Recognized radix?
 00E0C8  2               
 00E0C8  2  F0 04        	beq	@b			; Yes
 00E0CA  2               
@@ -5651,7 +5657,7 @@ Current file: main.asm
 00E0D0  2  24 B4        	bit 	instsize
 00E0D2  2  30 08        	bmi	@c			; No radix symbol wanted
 00E0D4  2               
-00E0D4  2  BD AA E4     	lda	radxtab, X		; Radix table
+00E0D4  2  BD AC E4     	lda	radxtab, X		; Radix table
 00E0D7  2  8D 00 02     	sta	ibuffer			; Prepend string
 00E0DA  2  E6 AD        	inc	ibufidx			; Bump string index
 00E0DC  2               
@@ -5693,13 +5699,13 @@ Current file: main.asm
 00E0FE  2  85 A3        	sta	facc			; Initialyze byte counter
 00E100  2               
 00E100  2  A4 B0        	ldy	radix			; radix index
-00E102  2  B9 A6 E4     	lda	numstab, Y		; Numerals in string
+00E102  2  B9 A8 E4     	lda	numstab, Y		; Numerals in string
 00E105  2  85 A4        	sta	facc + s_byte		; Set remaining numeral count
 00E107  2               
-00E107  2  B9 9E E4     	lda 	bitsntab, Y		; Bits per numeral
+00E107  2  B9 A0 E4     	lda 	bitsntab, Y		; Bits per numeral
 00E10A  2  85 A5        	sta	facc + s_word		; Set
 00E10C  2               
-00E10C  2  B9 A2 E4     	lda	lzsttab, Y		; Leading zero threshold
+00E10C  2  B9 A4 E4     	lda	lzsttab, Y		; Leading zero threshold
 00E10F  2  85 A6        	sta	facc + s_xword		; Set
 00E111  2               
 00E111  2               ;------------------------------------------------------------------------------
@@ -5988,7 +5994,7 @@ Current file: main.asm
 00E201  2  A2 08 00     	ldx	#cpcodeee - cpcode - 1
 00E204  2               
 00E204  2               @a:
-00E204  2  BF 59 E4 00  	lda	f:cpcode, X		; Transfer code copy ...
+00E204  2  BF 5B E4 00  	lda	f:cpcode, X		; Transfer code copy ...
 00E208  2  95 95        	sta	mcftwork, X		; ... to workspace
 00E20A  2  CA           	dex
 00E20B  2  10 F7        	bpl	@a			; Until done...
@@ -6321,7 +6327,7 @@ Current file: main.asm
 00E2F2  2               instdata:
 00E2F2  2  E2 30        	shortr				; 8-bit registers .A, .X and .Y
 00E2F4  2               
-00E2F4  2  BD 6F E6     	lda	mnetabam, X		; Addressing mode data
+00E2F4  2  BD 71 E6     	lda	mnetabam, X		; Addressing mode data
 00E2F7  2  48           	pha				; Save mode flag bits
 00E2F8  2  48           	pha				; Save data size
 00E2F9  2  29 0F        	and	#amodmask		; Extract mode index and ...
@@ -6831,1269 +6837,1269 @@ Current file: main.asm
 00E450  2               ;------------------------------------------------------------------------------
 00E450  2               teststop:
 00E450  2  20 14 FD     	jsr	getcha			; Poll console
-00E453  2  B0 02        	bcs	@a			; No input
+00E453  2  B0 04        	bcs	@a			; No input
 00E455  2               
 00E455  2  C9 03        	cmp	#stopkey
-00E457  2               
-00E457  2               @a:
-00E457  2  18           	clc
-00E458  2               
-00E458  2               @b:
-00E458  2  60           	rts
-00E459  2               
-00E459  2               ;------------------------------------------------------------------------------
-00E459  2               ; cpcode: Copy Memory Code
-00E459  2               ;
-00E459  2               ;	This code is transfered to workspace when a
-00E459  2               ;	copy or fill operation is to be performed.
-00E459  2               ;------------------------------------------------------------------------------
-00E459  2               cpcode:
-00E459  2  8B           		phb			; Must preserve data bank
-00E45A  2  EA           		nop			; Placeholder
-00E45B  2  EA           		nop			; Placeholder
+00E457  2  F0 01        	beq	@b
+00E459  2               @a:
+00E459  2  18           	clc
+00E45A  2               
+00E45A  2               @b:
+00E45A  2  60           	rts
+00E45B  2               
+00E45B  2               ;------------------------------------------------------------------------------
+00E45B  2               ; cpcode: Copy Memory Code
+00E45B  2               ;
+00E45B  2               ;	This code is transfered to workspace when a
+00E45B  2               ;	copy or fill operation is to be performed.
+00E45B  2               ;------------------------------------------------------------------------------
+00E45B  2               cpcode:
+00E45B  2  8B           		phb			; Must preserve data bank
 00E45C  2  EA           		nop			; Placeholder
-00E45D  2  AB           		plb			; Restore databank
-00E45E  2  5C BE D8 00  		jml	monce		; Return to command executive
-00E462  2               cpcodeee	= *			; Placeholder - do not delete
-00E462  2               
-00E462  2               monhlp:
-00E462  2  F4 4A E8     	pea	mm_hlp			; Print help
-00E465  2  20 D9 DF     	jsr	sprint
-00E468  2               
-00E468  2  38           	sec
-00E469  2  4C 71 D8     	jmp	monreg			; When returning, show registers
-00E46C  2               
-00E46C  2               ;------------------------------------------------------------------------------
-00E46C  2               ; Command Processing Data Tables
-00E46C  2               ;------------------------------------------------------------------------------
-00E46C  2               ; Monitor commands
-00E46C  2               ;------------------------------------------------------------------------------
-00E46C  2               mpctab:
-00E46C  2  41           	.byte	'A'			; Assemble code
-00E46D  2  43           	.byte	'C'			; Compare memory ranges
-00E46E  2  44           	.byte	'D'			; Disassemble code
-00E46F  2  46           	.byte	'F'			; Fill memory
-00E470  2  47           	.byte	'G'			; Execute code
-00E471  2  48           	.byte	'H'			; Search memory
-00E472  2  4A           	.byte	'J'			; Execute code as subroutine
-00E473  2  4C           	.byte	'L'			; Load Intel Hex file
-00E474  2  4D           	.byte	'M'			; Dump memory range
-00E475  2  52           	.byte	'R'			; Dump registers
-00E476  2  54           	.byte	'T'			; Copy memory range
-00E477  2               ;	.byte	'X'			; Exit from monitor
-00E477  2  3E           	.byte	'>'			; Change memory
-00E478  2  3B           	.byte	';'			; Change registers
-00E479  2  3F           	.byte	'?'			; Help
-00E47A  2               n_mpctab	= * - mpctab		; # entries in above table
-00E47A  2               
-00E47A  2               ;------------------------------------------------------------------------------
-00E47A  2               ; Monitor command jump table
-00E47A  2               ;------------------------------------------------------------------------------
-00E47A  2               mpcextab:
-00E47A  2  05 D9        	.word	monasc - s_byte		; A - Assemble code
-00E47C  2  CD DB        	.word	moncmp - s_byte		; C - Compare memory ranges
-00E47E  2  E1 DA        	.word	mondsc - s_byte		; D - Disassemble code
-00E480  2  A0 DC        	.word	monfil - s_byte		; F - Fill memory
-00E482  2  37 DB        	.word	monjmp - s_byte		; G - Execute code
-00E484  2  08 DD        	.word	monhnt - s_byte		; H - Search memory
-00E486  2  68 DB        	.word	monjsr - s_byte		; J - Execute code as subroutine
-00E488  2               ;	.word	LOADS19 - s_byte	; L - Load S19 file
-00E488  2  FF CF        	.word	strtintel - s_byte	; L - Load Intel Hex file
-00E48A  2  4C DC        	.word	mondmp - s_byte		; M - Dump memory range
-00E48C  2  70 D8        	.word	monreg - s_byte		; R - Dump registers
-00E48E  2  FB DB        	.word 	moncpy - s_byte		; T - Copy memory range
-00E490  2               ;	.word	monxit - s_byte		; X - Exit from mointor
-00E490  2  A2 DB        	.word	monchm - s_byte		; > - Change memory
-00E492  2  82 DD        	.word	monchr - s_byte		; ; - Change registers
-00E494  2  61 E4        	.word	monhlp - s_byte		; ? - Help
-00E496  2               
-00E496  2               ;------------------------------------------------------------------------------
-00E496  2               ; Number Conversion
-00E496  2               ;------------------------------------------------------------------------------
-00E496  2               basetab:				; Supported number bases
-00E496  2  10           	.byte	16			;  - Hexadecimal
-00E497  2  0A           	.byte	10			;  - Decimal
-00E498  2  08           	.byte	8			;  - Octal
-00E499  2  02           	.byte	2			;  - Binary
-00E49A  2               bitsdtab:				; Bits per binary digit
-00E49A  2  04           	.byte	4
-00E49B  2  03           	.byte	3
-00E49C  2  03           	.byte	3
-00E49D  2  01           	.byte	1
-00E49E  2               bitsntab:				; Bits per ASCII character
-00E49E  2  04           	.byte	4
-00E49F  2  04           	.byte	4
-00E4A0  2  03           	.byte	3
-00E4A1  2  01           	.byte	1
-00E4A2  2               lzsttab:				; Leading zero suppression thresholds
+00E45D  2  EA           		nop			; Placeholder
+00E45E  2  EA           		nop			; Placeholder
+00E45F  2  AB           		plb			; Restore databank
+00E460  2  5C BE D8 00  		jml	monce		; Return to command executive
+00E464  2               cpcodeee	= *			; Placeholder - do not delete
+00E464  2               
+00E464  2               monhlp:
+00E464  2  F4 4C E8     	pea	mm_hlp			; Print help
+00E467  2  20 D9 DF     	jsr	sprint
+00E46A  2               
+00E46A  2  38           	sec
+00E46B  2  4C 71 D8     	jmp	monreg			; When returning, show registers
+00E46E  2               
+00E46E  2               ;------------------------------------------------------------------------------
+00E46E  2               ; Command Processing Data Tables
+00E46E  2               ;------------------------------------------------------------------------------
+00E46E  2               ; Monitor commands
+00E46E  2               ;------------------------------------------------------------------------------
+00E46E  2               mpctab:
+00E46E  2  41           	.byte	'A'			; Assemble code
+00E46F  2  43           	.byte	'C'			; Compare memory ranges
+00E470  2  44           	.byte	'D'			; Disassemble code
+00E471  2  46           	.byte	'F'			; Fill memory
+00E472  2  47           	.byte	'G'			; Execute code
+00E473  2  48           	.byte	'H'			; Search memory
+00E474  2  4A           	.byte	'J'			; Execute code as subroutine
+00E475  2  4C           	.byte	'L'			; Load Intel Hex file
+00E476  2  4D           	.byte	'M'			; Dump memory range
+00E477  2  52           	.byte	'R'			; Dump registers
+00E478  2  54           	.byte	'T'			; Copy memory range
+00E479  2               ;	.byte	'X'			; Exit from monitor
+00E479  2  3E           	.byte	'>'			; Change memory
+00E47A  2  3B           	.byte	';'			; Change registers
+00E47B  2  3F           	.byte	'?'			; Help
+00E47C  2               n_mpctab	= * - mpctab		; # entries in above table
+00E47C  2               
+00E47C  2               ;------------------------------------------------------------------------------
+00E47C  2               ; Monitor command jump table
+00E47C  2               ;------------------------------------------------------------------------------
+00E47C  2               mpcextab:
+00E47C  2  05 D9        	.word	monasc - s_byte		; A - Assemble code
+00E47E  2  CD DB        	.word	moncmp - s_byte		; C - Compare memory ranges
+00E480  2  E1 DA        	.word	mondsc - s_byte		; D - Disassemble code
+00E482  2  A0 DC        	.word	monfil - s_byte		; F - Fill memory
+00E484  2  37 DB        	.word	monjmp - s_byte		; G - Execute code
+00E486  2  08 DD        	.word	monhnt - s_byte		; H - Search memory
+00E488  2  68 DB        	.word	monjsr - s_byte		; J - Execute code as subroutine
+00E48A  2               ;	.word	LOADS19 - s_byte	; L - Load S19 file
+00E48A  2  FF CF        	.word	strtintel - s_byte	; L - Load Intel Hex file
+00E48C  2  4C DC        	.word	mondmp - s_byte		; M - Dump memory range
+00E48E  2  70 D8        	.word	monreg - s_byte		; R - Dump registers
+00E490  2  FB DB        	.word 	moncpy - s_byte		; T - Copy memory range
+00E492  2               ;	.word	monxit - s_byte		; X - Exit from mointor
+00E492  2  A2 DB        	.word	monchm - s_byte		; > - Change memory
+00E494  2  82 DD        	.word	monchr - s_byte		; ; - Change registers
+00E496  2  63 E4        	.word	monhlp - s_byte		; ? - Help
+00E498  2               
+00E498  2               ;------------------------------------------------------------------------------
+00E498  2               ; Number Conversion
+00E498  2               ;------------------------------------------------------------------------------
+00E498  2               basetab:				; Supported number bases
+00E498  2  10           	.byte	16			;  - Hexadecimal
+00E499  2  0A           	.byte	10			;  - Decimal
+00E49A  2  08           	.byte	8			;  - Octal
+00E49B  2  02           	.byte	2			;  - Binary
+00E49C  2               bitsdtab:				; Bits per binary digit
+00E49C  2  04           	.byte	4
+00E49D  2  03           	.byte	3
+00E49E  2  03           	.byte	3
+00E49F  2  01           	.byte	1
+00E4A0  2               bitsntab:				; Bits per ASCII character
+00E4A0  2  04           	.byte	4
+00E4A1  2  04           	.byte	4
 00E4A2  2  03           	.byte	3
-00E4A3  2  02           	.byte	2
-00E4A4  2  09           	.byte	9
+00E4A3  2  01           	.byte	1
+00E4A4  2               lzsttab:				; Leading zero suppression thresholds
+00E4A4  2  03           	.byte	3
 00E4A5  2  02           	.byte	2
-00E4A6  2               numstab:				; Bin to ASCII conversion numerals
-00E4A6  2  0C           	.byte	12
-00E4A7  2  0C           	.byte	12
-00E4A8  2  10           	.byte	16
-00E4A9  2  30           	.byte	48
-00E4AA  2               radxtab:				; Supported radices
-00E4AA  2  24           	.byte	c_hex			;  - Hexadecimal radix
-00E4AB  2  2B           	.byte	c_dec			;  - Decimal radix
-00E4AC  2  40           	.byte	c_oct			;  - Octal radix
-00E4AD  2  25           	.byte	c_bin			;  - Binary radix
-00E4AE  2               n_radix		= * - radxtab		; # recognized radices
-00E4AE  2               
-00E4AE  2               ;------------------------------------------------------------------------------
-00E4AE  2               ; Shadow MPU Register Sizes
-00E4AE  2               ;------------------------------------------------------------------------------
-00E4AE  2               rcvltab:
-00E4AE  2  02           	.byte	s_mpupbrx + s_byte	; PB
-00E4AF  2  03           	.byte	s_mpupcx  + s_byte	; PC
-00E4B0  2  02           	.byte	s_mpusrx  + s_byte	; SR
-00E4B1  2  03           	.byte	s_word    + s_byte	; .C
-00E4B2  2  03           	.byte	s_word    + s_byte	; .X
-00E4B3  2  03           	.byte	s_word    + s_byte	; .Y
-00E4B4  2  03           	.byte	s_mpuspx  + s_byte	; SP
-00E4B5  2  03           	.byte	s_mpudpx  + s_byte	; DP
-00E4B6  2  02           	.byte	s_mpudbrx + s_byte	; DB
-00E4B7  2               n_regchv	= * - rcvltab		; Total shadow registers
-00E4B7  2               
-00E4B7  2               ;------------------------------------------------------------------------------
-00E4B7  2               ; Assembler/Disassembler Data Tables
-00E4B7  2               ;------------------------------------------------------------------------------
-00E4B7  2               mnetab:
-00E4B7  2  F2 10        	.word	mne_xba			;  0 - XBA
-00E4B9  2  5A 11        	.word	mne_lda			;  1 - LDA
-00E4BB  2  A2 11         	.word	mne_pea			;  2 - PEA
-00E4BD  2  62 12         	.word	mne_pha			;  3 - PHA
-00E4BF  2  62 13         	.word	mne_pla			;  4 - PLA
-00E4C1  2  C6 14         	.word	mne_bra			;  5 - BRA
-00E4C3  2  E0 14         	.word	mne_ora			;  6 - ORA
-00E4C5  2  68 15         	.word	mne_sta			;  7 - STA
-00E4C7  2  6A 16         	.word	mne_txa			;  8 - TXA
-00E4C9  2  6A 16         	.word	mne_tya			;  9 - TYA
-00E4CB  2  62 1A         	.word	mne_phb			; 10 - PHB
-00E4CD  2  62 1B         	.word	mne_plb			; 11 - PLB
-00E4CF  2  EA 1C         	.word	mne_trb			; 12 - TRB
-00E4D1  2  2A 1D         	.word	mne_tsb			; 13 - TSB
-00E4D3  2  E8 20         	.word	mne_sbc			; 14 - SBC
-00E4D5  2  06 21         	.word	mne_bcc			; 15 - BCC
-00E4D7  2  44 21         	.word	mne_adc			; 16 - ADC
-00E4D9  2  6A 21         	.word	mne_tdc			; 17 - TDC
-00E4DB  2  8A 21         	.word	mne_dec			; 18 - DEC
-00E4DD  2  A8 21         	.word	mne_sec			; 19 - SEC
-00E4DF  2  48 23         	.word	mne_clc			; 20 - CLC
-00E4E1  2  D4 23         	.word	mne_inc			; 21 - INC
-00E4E3  2  2A 25         	.word	mne_tsc			; 22 - TSC
-00E4E5  2  C6 25         	.word	mne_bvc			; 23 - BVC
-00E4E7  2  2A 29         	.word	mne_tcd			; 24 - TCD
-00E4E9  2  A8 29         	.word	mne_sed			; 25 - SED
-00E4EB  2  62 2A         	.word	mne_phd			; 26 - PHD
-00E4ED  2  48 2B         	.word	mne_cld			; 27 - CLD
-00E4EF  2  62 2B         	.word	mne_pld			; 28 - PLD
-00E4F1  2  C4 2B         	.word	mne_and			; 29 - AND
-00E4F3  2  32 31         	.word	mne_xce			; 30 - XCE
-00E4F5  2  C6 33         	.word	mne_bne			; 31 - BNE
-00E4F7  2  B0 50         	.word	mne_wai			; 32 - WAI
-00E4F9  2  A2 51         	.word	mne_pei			; 33 - PEI
-00E4FB  2  A8 51         	.word	mne_sei			; 34 - SEI
-00E4FD  2  48 53         	.word	mne_cli			; 35 - CLI
-00E4FF  2  86 53         	.word	mne_bmi			; 36 - BMI
-00E501  2  66 55         	.word	mne_rti			; 37 - RTI
-00E503  2  62 62         	.word	mne_phk			; 38 - PHK
-00E505  2  C6 64         	.word	mne_brk			; 39 - BRK
-00E507  2  96 6B         	.word	mne_jml			; 40 - JML
-00E509  2  26 6C         	.word	mne_rol			; 41 - ROL
-00E50B  2  46 6C         	.word	mne_bpl			; 42 - BPL
-00E50D  2  C6 6C         	.word	mne_brl			; 43 - BRL
-00E50F  2  04 6D         	.word	mne_asl			; 44 - ASL
-00E511  2  16 6D         	.word	mne_jsl			; 45 - JSL
-00E513  2  66 6D         	.word	mne_rtl			; 46 - RTL
-00E515  2  70 71         	.word	mne_wdm			; 47 - WDM
-00E517  2  DC 7D         	.word	mne_mvn			; 48 - MVN
-00E519  2  A6 89         	.word	mne_rep			; 49 - REP
-00E51B  2  A8 89         	.word	mne_sep			; 50 - SEP
-00E51D  2  62 8A         	.word	mne_php			; 51 - PHP
-00E51F  2  62 8B         	.word	mne_plp			; 52 - PLP
-00E521  2  88 8B         	.word	mne_cmp			; 53 - CMP
-00E523  2  96 8B         	.word	mne_jmp			; 54 - JMP
-00E525  2  08 8C         	.word	mne_cop			; 55 - COP
-00E527  2  1E 8C         	.word	mne_nop			; 56 - NOP
-00E529  2  68 8D         	.word	mne_stp			; 57 - STP
-00E52B  2  DC 8D         	.word	mne_mvp			; 58 - MVP
-00E52D  2  86 91         	.word	mne_beq			; 59 - BEQ
-00E52F  2  A2 99         	.word	mne_per			; 60 - PER
-00E531  2  0C 9C         	.word	mne_eor			; 61 - EOR
-00E533  2  26 9C         	.word	mne_ror			; 62 - ROR
-00E535  2  16 9D         	.word	mne_jsr			; 63 - JSR
-00E537  2  1A 9D         	.word	mne_lsr			; 64 - LSR
-00E539  2  06 A1         	.word	mne_bcs			; 65 - BCS
-00E53B  2  2A A1         	.word	mne_tcs			; 66 - TCS
-00E53D  2  66 A5         	.word	mne_rts			; 67 - RTS
-00E53F  2  C6 A5         	.word	mne_bvs			; 68 - BVS
-00E541  2  6A A6         	.word	mne_txs			; 69 - TXS
-00E543  2  86 AA         	.word	mne_bit			; 70 - BIT
-00E545  2  48 BB         	.word	mne_clv			; 71 - CLV
-00E547  2  AA C8         	.word	mne_tax			; 72 - TAX
-00E549  2  5A C9         	.word	mne_ldx			; 73 - LDX
-00E54B  2  8A C9         	.word	mne_dex			; 74 - DEX
-00E54D  2  62 CA         	.word	mne_phx			; 75 - PHX
-00E54F  2  62 CB         	.word	mne_plx			; 76 - PLX
-00E551  2  D4 CB         	.word	mne_inx			; 77 - INX
-00E553  2  48 CC         	.word	mne_cpx			; 78 - CPX
-00E555  2  2A CD         	.word	mne_tsx			; 79 - TSX
-00E557  2  68 CD         	.word	mne_stx			; 80 - STX
-00E559  2  AA CE         	.word	mne_tyx			; 81 - TYX
-00E55B  2  AA D0         	.word	mne_tay			; 82 - TAY
-00E55D  2  5A D1         	.word	mne_ldy			; 83 - LDY
-00E55F  2  8A D1         	.word	mne_dey			; 84 - DEY
-00E561  2  62 D2         	.word	mne_phy			; 85 - PHY
-00E563  2  62 D3         	.word	mne_ply			; 86 - PLY
-00E565  2  D4 D3         	.word	mne_iny			; 87 - INY
-00E567  2  48 D4         	.word	mne_cpy			; 88 - CPY
-00E569  2  68 D5         	.word	mne_sty			; 89 - STY
-00E56B  2  6A D6         	.word	mne_txy			; 90 - TXY
-00E56D  2  68 DD         	.word	mne_stz			; 91 - STZ
-00E56F  2               
-00E56F  2               s_mnetab	= * - mnetab		; Menmonic table size
-00E56F  2               n_mnemon	= s_mnetab / s_word	; Total # mnemonics
-00E56F  2               
-00E56F  2               ;------------------------------------------------------------------------------
-00E56F  2               ; Mnemonic Lookup Indices in Opcode Order
-00E56F  2               ;------------------------------------------------------------------------------
-00E56F  2               mnetabidx:
-00E56F  2  27           	.byte	mne_brkx		; $00  BRK
-00E570  2  06            	.byte	mne_orax		; $01  ORA (dp,X)
-00E571  2  37            	.byte	mne_copx		; $02  COP
-00E572  2  06            	.byte	mne_orax		; $03  ORA <offset>,S
-00E573  2  0D            	.byte	mne_tsbx		; $04  TSB dp
-00E574  2  06            	.byte	mne_orax		; $05  ORA dp
-00E575  2  2C            	.byte	mne_aslx		; $06  ASL dp
-00E576  2  06            	.byte	mne_orax		; $07  ORA [dp]
-00E577  2  33            	.byte	mne_phpx		; $08  PHP
-00E578  2  06            	.byte	mne_orax		; $09  ORA #
-00E579  2  2C            	.byte	mne_aslx		; $0A  ASL A
-00E57A  2  1A            	.byte	mne_phdx		; $0B  PHD
-00E57B  2  0D            	.byte	mne_tsbx		; $0C  TSB abs
-00E57C  2  06            	.byte	mne_orax		; $0D  ORA abs
-00E57D  2  2C            	.byte	mne_aslx		; $0E  ASL abs
-00E57E  2  06            	.byte	mne_orax		; $0F  ORA absl
-00E57F  2               ;
-00E57F  2  2A            	.byte	mne_bplx		; $10  BPL abs
-00E580  2  06            	.byte	mne_orax		; $11  ORA (<dp>),Y
-00E581  2  06            	.byte	mne_orax		; $12  ORA (dp)
-00E582  2  06            	.byte	mne_orax		; $13  ORA (<offset>,S),Y
-00E583  2  0C            	.byte	mne_trbx		; $14  TRB dp
-00E584  2  06            	.byte	mne_orax		; $15  ORA dp,X
-00E585  2  2C            	.byte	mne_aslx		; $16  ASL dp,X
-00E586  2  06            	.byte	mne_orax		; $17  ORA [dp],Y
-00E587  2  14            	.byte	mne_clcx		; $18  CLC
-00E588  2  06            	.byte	mne_orax		; $19  ORA abs
-00E589  2  15            	.byte	mne_incx		; $1A  INC A
-00E58A  2  42            	.byte	mne_tcsx		; $1B  TCS
-00E58B  2  0C            	.byte	mne_trbx		; $1C  TRB abs
-00E58C  2  06            	.byte	mne_orax		; $1D  ORA abs,X
-00E58D  2  2C            	.byte	mne_aslx		; $1E  ASL abs,X
-00E58E  2  06            	.byte	mne_orax		; $1F  ORA absl,X
-00E58F  2               ;
-00E58F  2  3F            	.byte	mne_jsrx		; $20  JSR abs
-00E590  2  1D            	.byte	mne_andx		; $21  AND (dp,X)
-00E591  2  2D            	.byte	mne_jslx		; $22  JSL absl
-00E592  2  1D            	.byte	mne_andx		; $23  AND <offset>,S
-00E593  2  46            	.byte	mne_bitx		; $24  BIT dp
-00E594  2  1D            	.byte	mne_andx		; $25  AND dp
-00E595  2  29            	.byte	mne_rolx		; $26  ROL dp
-00E596  2  1D            	.byte	mne_andx		; $27  AND [dp]
-00E597  2  34            	.byte	mne_plpx		; $28  PLP
-00E598  2  1D            	.byte	mne_andx		; $29  AND #
-00E599  2  29            	.byte	mne_rolx		; $2A  ROL A
-00E59A  2  1C            	.byte	mne_pldx		; $2B  PLD
-00E59B  2  46            	.byte	mne_bitx		; $2C  BIT abs
-00E59C  2  1D            	.byte	mne_andx		; $2D  AND abs
-00E59D  2  29            	.byte	mne_rolx		; $2E  ROL abs
-00E59E  2  1D            	.byte	mne_andx		; $2F  AND absl
-00E59F  2               ;
-00E59F  2  24            	.byte	mne_bmix		; $30  BMI abs
-00E5A0  2  1D            	.byte	mne_andx		; $31  AND (<dp>),Y
-00E5A1  2  1D            	.byte	mne_andx		; $32  AND (dp)
-00E5A2  2  1D            	.byte	mne_andx		; $33  AND (<offset>,S),Y
-00E5A3  2  46            	.byte	mne_bitx		; $34  BIT dp,X
-00E5A4  2  1D            	.byte	mne_andx		; $35  AND dp,X
-00E5A5  2  29            	.byte	mne_rolx		; $36  ROL dp,X
-00E5A6  2  1D            	.byte	mne_andx		; $37  AND [dp],Y
-00E5A7  2  13            	.byte	mne_secx		; $38  SEC
-00E5A8  2  1D            	.byte	mne_andx		; $39  AND abs,Y
-00E5A9  2  12            	.byte	mne_decx		; $3A  DEC A
-00E5AA  2  16            	.byte	mne_tscx		; $3B  TSC
-00E5AB  2  46            	.byte	mne_bitx		; $3C  BIT abs,X
-00E5AC  2  1D            	.byte	mne_andx		; $3D  AND abs,X
-00E5AD  2  29            	.byte	mne_rolx		; $3E  ROL abs,X
-00E5AE  2  1D            	.byte	mne_andx		; $3F  AND absl,X
-00E5AF  2               ;
-00E5AF  2  25            	.byte	mne_rtix		; $40  RTI
-00E5B0  2  3D            	.byte	mne_eorx		; $41  EOR (dp,X)
-00E5B1  2  2F            	.byte	mne_wdmx		; $42  WDM
-00E5B2  2  3D            	.byte	mne_eorx		; $43  EOR <offset>,S
-00E5B3  2  3A            	.byte	mne_mvpx		; $44  MVP sb,db
-00E5B4  2  3D            	.byte	mne_eorx		; $45  EOR dp
-00E5B5  2  40            	.byte	mne_lsrx		; $46  LSR dp
-00E5B6  2  3D            	.byte	mne_eorx		; $47  EOR [dp]
-00E5B7  2  03            	.byte	mne_phax		; $48  PHA
-00E5B8  2  3D            	.byte	mne_eorx		; $49  EOR #
-00E5B9  2  40            	.byte	mne_lsrx		; $4A  LSR A
-00E5BA  2  26            	.byte	mne_phkx		; $4B  PHK
-00E5BB  2  36            	.byte	mne_jmpx		; $4C  JMP abs
-00E5BC  2  3D            	.byte	mne_eorx		; $4D  EOR abs
-00E5BD  2  40            	.byte	mne_lsrx		; $4E  LSR abs
-00E5BE  2  3D            	.byte	mne_eorx		; $4F  EOR absl
-00E5BF  2               ;
-00E5BF  2  17            	.byte	mne_bvcx		; $50  BVC abs
-00E5C0  2  3D            	.byte	mne_eorx		; $51  EOR (<dp>),Y
-00E5C1  2  3D            	.byte	mne_eorx		; $52  EOR (dp)
-00E5C2  2  3D            	.byte	mne_eorx		; $53  EOR (<offset>,S),Y
-00E5C3  2  30            	.byte	mne_mvnx		; $54  MVN sb,db
-00E5C4  2  3D            	.byte	mne_eorx		; $55  EOR dp,X
-00E5C5  2  40            	.byte	mne_lsrx		; $56  LSR dp,X
-00E5C6  2  3D            	.byte	mne_eorx		; $57  EOR [dp],Y
-00E5C7  2  23            	.byte	mne_clix		; $58  CLI
-00E5C8  2  3D            	.byte	mne_eorx		; $59  EOR abs,Y
-00E5C9  2  55            	.byte	mne_phyx		; $5A  PHY
-00E5CA  2  18            	.byte	mne_tcdx		; $5B  TCD
-00E5CB  2  28            	.byte	mne_jmlx		; $5C  JML absl
-00E5CC  2  3D            	.byte	mne_eorx		; $5D  EOR abs,X
-00E5CD  2  40            	.byte	mne_lsrx		; $5E  LSR abs,X
-00E5CE  2  3D            	.byte	mne_eorx		; $5F  EOR absl,X
-00E5CF  2               ;
-00E5CF  2  43            	.byte	mne_rtsx		; $60  RTS
-00E5D0  2  10            	.byte	mne_adcx		; $61  ADC (dp,X)
-00E5D1  2  3C            	.byte	mne_perx		; $62  PER
-00E5D2  2  10            	.byte	mne_adcx		; $63  ADC <offset>,S
-00E5D3  2  5B            	.byte	mne_stzx		; $64  STZ dp
-00E5D4  2  10            	.byte	mne_adcx		; $65  ADC dp
-00E5D5  2  3E            	.byte	mne_rorx		; $66  ROR dp
-00E5D6  2  10            	.byte	mne_adcx		; $67  ADC [dp]
-00E5D7  2  04            	.byte	mne_plax		; $68  PLA
-00E5D8  2  10            	.byte	mne_adcx		; $69  ADC #
-00E5D9  2  3E            	.byte	mne_rorx		; $6A  ROR A
-00E5DA  2  2E            	.byte	mne_rtlx		; $6B  RTL
-00E5DB  2  36            	.byte	mne_jmpx		; $6C  JMP (abs)
-00E5DC  2  10            	.byte	mne_adcx		; $6D  ADC abs
-00E5DD  2  3E            	.byte	mne_rorx		; $6E  ROR abs
-00E5DE  2  10            	.byte	mne_adcx		; $6F  ADC absl
-00E5DF  2               ;
-00E5DF  2  44            	.byte	mne_bvsx		; $70  BVS abs
-00E5E0  2  10            	.byte	mne_adcx		; $71  ADC (<dp>),Y
-00E5E1  2  10            	.byte	mne_adcx		; $72  ADC (dp)
-00E5E2  2  10            	.byte	mne_adcx		; $73  ADC (<offset>,S),Y
-00E5E3  2  5B            	.byte	mne_stzx		; $74  STZ dp,X
-00E5E4  2  10            	.byte	mne_adcx		; $75  ADC dp,X
-00E5E5  2  3E            	.byte	mne_rorx		; $76  ROR dp,X
-00E5E6  2  10            	.byte	mne_adcx		; $77  ADC [dp],Y
-00E5E7  2  22            	.byte	mne_seix		; $78  SEI
-00E5E8  2  10            	.byte	mne_adcx		; $79  ADC abs,Y
-00E5E9  2  56            	.byte	mne_plyx		; $7A  PLY
-00E5EA  2  11            	.byte	mne_tdcx		; $7B  TDC
-00E5EB  2  36            	.byte	mne_jmpx		; $7C  JMP (abs,X)
-00E5EC  2  10            	.byte	mne_adcx		; $7D  ADC abs,X
-00E5ED  2  3E            	.byte	mne_rorx		; $7E  ROR abs,X
-00E5EE  2  10            	.byte	mne_adcx		; $7F  ADC absl,X
-00E5EF  2               ;
-00E5EF  2  05            	.byte	mne_brax		; $80  BRA abs
-00E5F0  2  07            	.byte	mne_stax		; $81  STA (dp,X)
-00E5F1  2  2B            	.byte	mne_brlx		; $82  BRL abs
-00E5F2  2  07            	.byte	mne_stax		; $83  STA <offset>,S
-00E5F3  2  59            	.byte	mne_styx		; $84  STY dp
-00E5F4  2  07            	.byte	mne_stax		; $85  STA dp
-00E5F5  2  50            	.byte	mne_stxx		; $86  STX dp
-00E5F6  2  07            	.byte	mne_stax		; $87  STA [dp]
-00E5F7  2  54            	.byte	mne_deyx		; $88  DEY
-00E5F8  2  46            	.byte	mne_bitx		; $89  BIT #
-00E5F9  2  08            	.byte	mne_txax		; $8A  TXA
-00E5FA  2  0A            	.byte	mne_phbx		; $8B  PHB
-00E5FB  2  59            	.byte	mne_styx		; $8C  STY abs
-00E5FC  2  07            	.byte	mne_stax		; $8D  STA abs
-00E5FD  2  50            	.byte	mne_stxx		; $8E  STX abs
-00E5FE  2  07            	.byte	mne_stax		; $8F  STA absl
-00E5FF  2               ;
-00E5FF  2  0F            	.byte	mne_bccx		; $90  BCC abs
-00E600  2  07            	.byte	mne_stax		; $91  STA (<dp>),Y
-00E601  2  07            	.byte	mne_stax		; $92  STA (dp)
-00E602  2  07            	.byte	mne_stax		; $93  STA (<offset>,S),Y
-00E603  2  59            	.byte	mne_styx		; $94  STY dp,X
-00E604  2  07            	.byte	mne_stax		; $95  STA dp,X
-00E605  2  50            	.byte	mne_stxx		; $96  STX dp,Y
-00E606  2  07            	.byte	mne_stax		; $97  STA [dp],Y
-00E607  2  09            	.byte	mne_tyax		; $98  TYA
-00E608  2  07            	.byte	mne_stax		; $99  STA abs,Y
-00E609  2  45            	.byte	mne_txsx		; $9A  TXS
-00E60A  2  5A            	.byte	mne_txyx		; $9B  TXY
-00E60B  2  5B            	.byte	mne_stzx		; $9C  STZ abs
-00E60C  2  07            	.byte	mne_stax		; $9D  STA abs,X
-00E60D  2  5B            	.byte	mne_stzx		; $9E  STZ abs,X
-00E60E  2  07            	.byte	mne_stax		; $9F  STA absl,X
-00E60F  2               ;
-00E60F  2  53            	.byte	mne_ldyx		; $A0  LDY #
-00E610  2  01            	.byte	mne_ldax		; $A1  LDA (dp,X)
-00E611  2  49            	.byte	mne_ldxx		; $A2  LDX #
-00E612  2  01            	.byte	mne_ldax		; $A3  LDA <offset>,S
-00E613  2  53            	.byte	mne_ldyx		; $A4  LDY dp
-00E614  2  01            	.byte	mne_ldax		; $A5  LDA dp
-00E615  2  49            	.byte	mne_ldxx		; $A6  LDX dp
-00E616  2  01            	.byte	mne_ldax		; $A7  LDA [dp]
-00E617  2  52            	.byte	mne_tayx		; $A8  TAY
-00E618  2  01            	.byte	mne_ldax		; $A9  LDA #
-00E619  2  48            	.byte	mne_taxx		; $AA  TAX
-00E61A  2  0B            	.byte	mne_plbx		; $AB  PLB
-00E61B  2  53            	.byte	mne_ldyx		; $AC  LDY abs
-00E61C  2  01            	.byte	mne_ldax		; $AD  LDA abs
-00E61D  2  49            	.byte	mne_ldxx		; $AE  LDX abs
-00E61E  2  01            	.byte	mne_ldax		; $AF  LDA absl
-00E61F  2               ;
-00E61F  2  41            	.byte	mne_bcsx		; $B0  BCS abs
-00E620  2  01            	.byte	mne_ldax		; $B1  LDA (<dp>),Y
-00E621  2  01            	.byte	mne_ldax		; $B2  LDA (dp)
-00E622  2  01            	.byte	mne_ldax		; $B3  LDA (<offset>,S),Y
-00E623  2  53            	.byte	mne_ldyx		; $B4  LDY dp,X
-00E624  2  01            	.byte	mne_ldax		; $B5  LDA dp,X
-00E625  2  49            	.byte	mne_ldxx		; $B6  LDX dp,Y
-00E626  2  01            	.byte	mne_ldax		; $B7  LDA [dp],Y
-00E627  2  47            	.byte	mne_clvx		; $B8  CLV
-00E628  2  01            	.byte	mne_ldax		; $B9  LDA abs,Y
-00E629  2  4F            	.byte	mne_tsxx		; $BA  TSX
-00E62A  2  51            	.byte	mne_tyxx		; $BB  TYX
-00E62B  2  53            	.byte	mne_ldyx		; $BC  LDY abs,X
-00E62C  2  01            	.byte	mne_ldax		; $BD  LDA abs,X
-00E62D  2  49            	.byte	mne_ldxx		; $BE  LDX abs,Y
-00E62E  2  01            	.byte	mne_ldax		; $BF  LDA absl,X
-00E62F  2               ;
-00E62F  2  58            	.byte	mne_cpyx		; $C0  CPY #
-00E630  2  35            	.byte	mne_cmpx		; $C1  CMP (dp,X)
-00E631  2  31            	.byte	mne_repx		; $C2  REP #
-00E632  2  35            	.byte	mne_cmpx		; $C3  CMP <offset>,S
-00E633  2  58            	.byte	mne_cpyx		; $C4  CPY dp
-00E634  2  35            	.byte	mne_cmpx		; $C5  CMP dp
-00E635  2  12            	.byte	mne_decx		; $C6  DEC dp
-00E636  2  35            	.byte	mne_cmpx		; $C7  CMP [dp]
-00E637  2  57            	.byte	mne_inyx		; $C8  INY
-00E638  2  35            	.byte	mne_cmpx		; $C9  CMP #
-00E639  2  4A            	.byte	mne_dexx		; $CA  DEX
-00E63A  2  15            	.byte	mne_waix		; $CB  WAI
-00E63B  2  58            	.byte	mne_cpyx		; $CC  CPY abs
-00E63C  2  35            	.byte	mne_cmpx		; $CD  CMP abs
-00E63D  2  12            	.byte	mne_decx		; $CE  DEC abs
-00E63E  2  35            	.byte	mne_cmpx		; $CF  CMP absl
-00E63F  2               ;
-00E63F  2  1F            	.byte	mne_bnex		; $D0  BNE abs
-00E640  2  35            	.byte	mne_cmpx		; $D1  CMP (<dp>),Y
-00E641  2  35            	.byte	mne_cmpx		; $D2  CMP (dp)
-00E642  2  35            	.byte	mne_cmpx		; $D3  CMP (<offset>,S),Y
-00E643  2  21            	.byte	mne_peix		; $D4  PEI dp
-00E644  2  35            	.byte	mne_cmpx		; $D5  CMP dp,X
-00E645  2  12            	.byte	mne_decx		; $D6  DEC dp,X
-00E646  2  35            	.byte	mne_cmpx		; $D7  CMP [dp],Y
-00E647  2  1B            	.byte	mne_cldx		; $D8  CLD
-00E648  2  35            	.byte	mne_cmpx		; $D9  CMP abs,Y
-00E649  2  4B            	.byte	mne_phxx		; $DA  PHX
-00E64A  2  39            	.byte	mne_stpx		; $DB  STP
-00E64B  2  36            	.byte	mne_jmpx		; $DC  JMP [abs]
-00E64C  2  35            	.byte	mne_cmpx		; $DD  CMP abs,X
-00E64D  2  12            	.byte	mne_decx		; $DE  DEC abs,X
-00E64E  2  35            	.byte	mne_cmpx		; $DF  CMP absl,X
-00E64F  2               ;
-00E64F  2  4E            	.byte	mne_cpxx		; $E0  CPX #
-00E650  2  0E            	.byte	mne_sbcx		; $E1  SBC (dp,X)
-00E651  2  32            	.byte	mne_sepx		; $E2  SEP #
-00E652  2  0E            	.byte	mne_sbcx		; $E3  SBC <offset>,S
-00E653  2  4E            	.byte	mne_cpxx		; $E4  CPX dp
-00E654  2  0E            	.byte	mne_sbcx		; $E5  SBC dp
-00E655  2  15            	.byte	mne_incx		; $E6  INC dp
-00E656  2  0E            	.byte	mne_sbcx		; $E7  SBC [dp]
-00E657  2  4D            	.byte	mne_inxx		; $E8  INX
-00E658  2  0E            	.byte	mne_sbcx		; $E9  SBC #
-00E659  2  38            	.byte	mne_nopx		; $EA  NOP
-00E65A  2  00            	.byte	mne_xbax		; $EB  XBA
-00E65B  2  4E            	.byte	mne_cpxx		; $EC  CPX abs
-00E65C  2  0E            	.byte	mne_sbcx		; $ED  SBC abs
-00E65D  2  15            	.byte	mne_incx		; $EE  INC abs
-00E65E  2  0E            	.byte	mne_sbcx		; $EF  SBC absl
-00E65F  2               ;
-00E65F  2  3B            	.byte	mne_beqx		; $F0  BEQ abs
-00E660  2  0E            	.byte	mne_sbcx		; $F1  SBC (<dp>),Y
-00E661  2  0E            	.byte	mne_sbcx		; $F2  SBC (dp)
-00E662  2  0E            	.byte	mne_sbcx		; $F3  SBC (<offset>,S),Y
-00E663  2  02            	.byte	mne_peax		; $F4  PEA #
-00E664  2  0E            	.byte	mne_sbcx		; $F5  SBC dp,X
-00E665  2  15            	.byte	mne_incx		; $F6  INC dp,X
-00E666  2  0E            	.byte	mne_sbcx		; $F7  SBC [dp],Y
-00E667  2  19            	.byte	mne_sedx		; $F8  SED
-00E668  2  0E            	.byte	mne_sbcx		; $F9  SBC abs,Y
-00E669  2  4C            	.byte	mne_plxx		; $FA  PLX
-00E66A  2  1E            	.byte	mne_xcex		; $FB  XCE
-00E66B  2  3F            	.byte	mne_jsrx		; $FC  JSR (abs,X)
-00E66C  2  0E            	.byte	mne_sbcx		; $FD  SBC abs,X
-00E66D  2  15            	.byte	mne_incx		; $FE  INC abs,X
-00E66E  2  0E            	.byte	mne_sbcx		; $FF  SBC absl,X
-00E66F  2               
-00E66F  2               ;------------------------------------------------------------------------------
-00E66F  2               ; Instruction Addressing Modes and Sizes in Opcode Order...
-00E66F  2               ;
-00E66F  2               ;	    xxxxxxxx
-00E66F  2               ;	    ||||||||
-00E66F  2               ;	    ||||++++---> Addressing Mode
-00E66F  2               ;	    ||||         ----------------------------------
-00E66F  2               ;	    ||||          0000  dp, abs, absl, implied or A
-00E66F  2               ;	    ||||          0001  #
-00E66F  2               ;	    ||||          0010  dp,X, abs,X or absl,X
-00E66F  2               ;	    ||||          0011  dp,Y or abs,Y
-00E66F  2               ;	    ||||          0100  (dp) or (abs)
-00E66F  2               ;	    ||||          0101  [dp] or [abs]
-00E66F  2               ;	    ||||          0110  [dp],Y
-00E66F  2               ;	    ||||          0111  (dp,X) or (abs,X)
-00E66F  2               ;	    ||||          1000  (<dp>),Y
-00E66F  2               ;	    ||||          1001  <offset>,S
-00E66F  2               ;	    ||||          1010  (<offset>,S),Y
-00E66F  2               ;	    ||||          1011  sbnk,dbnk (MVN or MVP)
-00E66F  2               ;	    ||||          ---------------------------------
-00E66F  2               ;	    ||||           #    = immediate
-00E66F  2               ;	    ||||           A    = accumulator
-00E66F  2               ;	    ||||           abs  = absolute
-00E66F  2               ;	    ||||           absl = absolute long
-00E66F  2               ;	    ||||           dbnk = destination bank
-00E66F  2               ;	    ||||           dp   = direct (zero) page
-00E66F  2               ;	    ||||           S    = stack relative
-00E66F  2               ;	    ||||           sbnk = source bank
-00E66F  2               ;	    ||||         ----------------------------------
-00E66F  2               ;	    ||||
-00E66F  2               ;	    ||++-------> binary-encoded operand size
-00E66F  2               ;	    |+---------> 1: relative branch instruction
-00E66F  2               ;	    +----------> 1: variable operand size...
-00E66F  2               ;
-00E66F  2               ;	    Variable operand size refers to an immediate mode instruction
-00E66F  2               ;	    that can accept either an 8 or 16 bit operand.  During instr-
-00E66F  2               ;	    uction assembly, an 8 bit operand can be forced to 16 bits by
-00E66F  2               ;	    preceding the operand field with !,  e.g.,  LDA !#$01,  which
-00E66F  2               ;	    will assemble as $A9 $01 $00.
-00E66F  2               ;------------------------------------------------------------------------------
-00E66F  2               mnetabam:
-00E66F  2  00           	.byte	ops0|am_nam 		; $00  BRK
-00E670  2  17           	.byte	ops1|am_indx		; $01  ORA (dp,X)
-00E671  2  10           	.byte	ops1|am_nam 		; $02  COP
-00E672  2  19           	.byte	ops1|am_stk 		; $03  ORA <offset>,S
-00E673  2  10           	.byte	ops1|am_nam 		; $04  TSB dp
-00E674  2  10           	.byte	ops1|am_nam 		; $05  ORA dp
-00E675  2  10           	.byte	ops1|am_nam 		; $06  ASL dp
-00E676  2  15           	.byte	ops1|am_indl		; $07  ORA [dp]
-00E677  2  00           	.byte	ops0|am_nam 		; $08  PHP
-00E678  2  91           	.byte	vops|am_imm 		; $09  ORA #
-00E679  2  00           	.byte	ops0|am_nam 		; $0A  ASL A
-00E67A  2  00           	.byte	ops0|am_nam 		; $0B  PHD
-00E67B  2  20           	.byte	ops2|am_nam 		; $0C  TSB abs
-00E67C  2  20           	.byte	ops2|am_nam 		; $0D  ORA abs
-00E67D  2  20           	.byte	ops2|am_nam 		; $0E  ASL abs
-00E67E  2  30           	.byte	ops3|am_nam 		; $0F  ORA absl
-00E67F  2               ;
-00E67F  2  50           	.byte	bop1|am_nam 		; $10  BPL abs
-00E680  2  18           	.byte	ops1|am_indy		; $11  ORA (<dp>),Y
-00E681  2  14           	.byte	ops1|am_ind 		; $12  ORA (dp)
-00E682  2  1A           	.byte	ops1|am_stky		; $13  ORA (<offset>,S),Y
-00E683  2  10           	.byte	ops1|am_nam 		; $14  TRB dp
-00E684  2  12           	.byte	ops1|am_adrx		; $15  ORA dp,X
-00E685  2  12           	.byte	ops1|am_adrx		; $16  ASL dp,X
-00E686  2  16           	.byte	ops1|am_indly 		; $17  ORA [dp],Y
-00E687  2  00           	.byte	ops0|am_nam 		; $18  CLC
-00E688  2  20           	.byte	ops2|am_nam 		; $19  ORA abs
-00E689  2  00           	.byte	ops0|am_nam 		; $1A  INC A
-00E68A  2  00           	.byte	ops0|am_nam 		; $1B  TCS
-00E68B  2  20           	.byte	ops2|am_nam 		; $1C  TRB abs
-00E68C  2  22           	.byte	ops2|am_adrx		; $1D  ORA abs,X
-00E68D  2  22           	.byte	ops2|am_adrx		; $1E  ASL abs,X
-00E68E  2  32           	.byte	ops3|am_adrx		; $1F  ORA absl,X
-00E68F  2               ;
-00E68F  2  20           	.byte	ops2|am_nam 		; $20  JSR abs
-00E690  2  17           	.byte	ops1|am_indx		; $21  AND (dp,X)
-00E691  2  30           	.byte	ops3|am_nam 		; $22  JSL absl
-00E692  2  19           	.byte	ops1|am_stk 		; $23  AND <offset>,S
-00E693  2  10           	.byte	ops1|am_nam 		; $24  BIT dp
-00E694  2  10           	.byte	ops1|am_nam 		; $25  AND dp
-00E695  2  10           	.byte	ops1|am_nam 		; $26  ROL dp
-00E696  2  15           	.byte	ops1|am_indl		; $27  AND [dp]
-00E697  2  00           	.byte	ops0|am_nam 		; $28  PLP
-00E698  2  91           	.byte	vops|am_imm 		; $29  AND #
-00E699  2  00           	.byte	ops0|am_nam 		; $2A  ROL A
-00E69A  2  00           	.byte	ops0|am_nam 		; $2B  PLD
-00E69B  2  20           	.byte	ops2|am_nam 		; $2C  BIT abs
-00E69C  2  20           	.byte	ops2|am_nam 		; $2D  AND abs
-00E69D  2  20           	.byte	ops2|am_nam 		; $2E  ROL abs
-00E69E  2  30           	.byte	ops3|am_nam 		; $2F  AND absl
-00E69F  2               ;
-00E69F  2  50           	.byte	bop1|am_nam 		; $30  BMI abs
-00E6A0  2  18           	.byte	ops1|am_indy		; $31  AND (<dp>),Y
-00E6A1  2  14           	.byte	ops1|am_ind 		; $32  AND (dp)
-00E6A2  2  1A           	.byte	ops1|am_stky		; $33  AND (<offset>,S),Y
-00E6A3  2  12           	.byte	ops1|am_adrx		; $34  BIT dp,X
-00E6A4  2  12           	.byte	ops1|am_adrx		; $35  AND dp,X
-00E6A5  2  12           	.byte	ops1|am_adrx		; $36  ROL dp,X
-00E6A6  2  16           	.byte	ops1|am_indly 		; $37  AND [dp],Y
-00E6A7  2  00           	.byte	ops0|am_nam 		; $38  SEC
-00E6A8  2  23           	.byte	ops2|am_adry		; $39  AND abs,Y
-00E6A9  2  00           	.byte	ops0|am_nam 		; $3A  DEC A
-00E6AA  2  00           	.byte	ops0|am_nam 		; $3B  TSC
-00E6AB  2  22           	.byte	ops2|am_adrx		; $3C  BIT abs,X
-00E6AC  2  22           	.byte	ops2|am_adrx		; $3D  AND abs,X
-00E6AD  2  22           	.byte	ops2|am_adrx		; $3E  ROL abs,X
-00E6AE  2  32           	.byte	ops3|am_adrx		; $3F  AND absl,X
-00E6AF  2               ;
-00E6AF  2  00           	.byte	ops0|am_nam 		; $40  RTI
-00E6B0  2  17           	.byte	ops1|am_indx		; $41  EOR (dp,X)
-00E6B1  2  00           	.byte	ops0|am_nam 		; $42  WDM
-00E6B2  2  19           	.byte	ops1|am_stk 		; $43  EOR <offset>,S
-00E6B3  2  2B           	.byte	ops2|am_move		; $44  MVP sb,db
-00E6B4  2  10           	.byte	ops1|am_nam 		; $45  EOR dp
-00E6B5  2  10           	.byte	ops1|am_nam 		; $46  LSR dp
-00E6B6  2  15           	.byte	ops1|am_indl		; $47  EOR [dp]
-00E6B7  2  00           	.byte	ops0|am_nam 		; $48  PHA
-00E6B8  2  91           	.byte	vops|am_imm 		; $49  EOR #
-00E6B9  2  00           	.byte	ops0|am_nam 		; $4A  LSR A
-00E6BA  2  00           	.byte	ops0|am_nam 		; $4B  PHK
-00E6BB  2  20           	.byte	ops2|am_nam 		; $4C  JMP abs
-00E6BC  2  20           	.byte	ops2|am_nam 		; $4D  EOR abs
-00E6BD  2  20           	.byte	ops2|am_nam 		; $4E  LSR abs
-00E6BE  2  30           	.byte	ops3|am_nam 		; $4F  EOR absl
-00E6BF  2               ;
-00E6BF  2  50           	.byte	bop1|am_nam 		; $50  BVC abs
-00E6C0  2  18           	.byte	ops1|am_indy		; $51  EOR (<dp>),Y
-00E6C1  2  14           	.byte	ops1|am_ind 		; $52  EOR (dp)
-00E6C2  2  1A           	.byte	ops1|am_stky		; $53  EOR (<offset>,S),Y
-00E6C3  2  2B           	.byte	ops2|am_move		; $54  MVN sb,db
-00E6C4  2  12           	.byte	ops1|am_adrx		; $55  EOR dp,X
-00E6C5  2  12           	.byte	ops1|am_adrx		; $56  LSR dp,X
-00E6C6  2  16           	.byte	ops1|am_indly 		; $57  EOR [dp],Y
-00E6C7  2  00           	.byte	ops0|am_nam 		; $58  CLI
-00E6C8  2  23           	.byte	ops2|am_adry		; $59  EOR abs,Y
-00E6C9  2  00           	.byte	ops0|am_nam 		; $5A  PHY
-00E6CA  2  00           	.byte	ops0|am_nam 		; $5B  TCD
-00E6CB  2  30           	.byte	ops3|am_nam 		; $5C  JML absl
-00E6CC  2  22           	.byte	ops2|am_adrx		; $5D  EOR abs,X
-00E6CD  2  22           	.byte	ops2|am_adrx		; $5E  LSR abs,X
-00E6CE  2  32           	.byte	ops3|am_adrx		; $5F  EOR absl,X
-00E6CF  2               ;
-00E6CF  2  00           	.byte	ops0|am_nam 		; $60  RTS
-00E6D0  2  17           	.byte	ops1|am_indx		; $61  ADC (dp,X)
-00E6D1  2  60           	.byte	bop2|am_nam 		; $62  PER
-00E6D2  2  19           	.byte	ops1|am_stk 		; $63  ADC <offset>,S
-00E6D3  2  10           	.byte	ops1|am_nam 		; $64  STZ dp
-00E6D4  2  10           	.byte	ops1|am_nam 		; $65  ADC dp
-00E6D5  2  10           	.byte	ops1|am_nam 		; $66  ROR dp
-00E6D6  2  15           	.byte	ops1|am_indl		; $67  ADC [dp]
-00E6D7  2  00           	.byte	ops0|am_nam 		; $68  PLA
-00E6D8  2  91           	.byte	vops|am_imm 		; $69  ADC #
-00E6D9  2  00           	.byte	ops0|am_nam 		; $6A  ROR A
-00E6DA  2  00           	.byte	ops0|am_nam 		; $6B  RTL
-00E6DB  2  24           	.byte	ops2|am_ind 		; $6C  JMP (abs)
-00E6DC  2  20           	.byte	ops2|am_nam 		; $6D  ADC abs
-00E6DD  2  20           	.byte	ops2|am_nam 		; $6E  ROR abs
-00E6DE  2  30           	.byte	ops3|am_nam 		; $6F  ADC absl
-00E6DF  2               ;
-00E6DF  2  50           	.byte	bop1|am_nam 		; $70  BVS abs
-00E6E0  2  18           	.byte	ops1|am_indy		; $71  ADC (<dp>),Y
-00E6E1  2  14           	.byte	ops1|am_ind 		; $72  ADC (dp)
-00E6E2  2  1A           	.byte	ops1|am_stky		; $73  ADC (<offset>,S),Y
-00E6E3  2  12           	.byte	ops1|am_adrx		; $74  STZ dp,X
-00E6E4  2  12           	.byte	ops1|am_adrx		; $75  ADC dp,X
-00E6E5  2  12           	.byte	ops1|am_adrx		; $76  ROR dp,X
-00E6E6  2  16           	.byte	ops1|am_indly 		; $77  ADC [dp],Y
-00E6E7  2  00           	.byte	ops0|am_nam 		; $78  SEI
-00E6E8  2  23           	.byte	ops2|am_adry		; $79  ADC abs,Y
-00E6E9  2  00           	.byte	ops0|am_nam 		; $7A  PLY
-00E6EA  2  00           	.byte	ops0|am_nam 		; $7B  TDC
-00E6EB  2  27           	.byte	ops2|am_indx		; $7C  JMP (abs,X)
-00E6EC  2  22           	.byte	ops2|am_adrx		; $7D  ADC abs,X
-00E6ED  2  22           	.byte	ops2|am_adrx		; $7E  ROR abs,X
-00E6EE  2  32           	.byte	ops3|am_adrx		; $7F  ADC absl,X
-00E6EF  2               ;
-00E6EF  2  50           	.byte	bop1|am_nam 		; $80  BRA abs
-00E6F0  2  17           	.byte	ops1|am_indx		; $81  STA (dp,X)
-00E6F1  2  60           	.byte	bop2|am_nam 		; $82  BRL abs
-00E6F2  2  19           	.byte	ops1|am_stk 		; $83  STA <offset>,S
-00E6F3  2  10           	.byte	ops1|am_nam 		; $84  STY dp
-00E6F4  2  10           	.byte	ops1|am_nam 		; $85  STA dp
-00E6F5  2  10           	.byte	ops1|am_nam 		; $86  STX dp
-00E6F6  2  15           	.byte	ops1|am_indl		; $87  STA [dp]
-00E6F7  2  00           	.byte	ops0|am_nam 		; $88  DEY
-00E6F8  2  91           	.byte	vops|am_imm 		; $89  BIT #
-00E6F9  2  00           	.byte	ops0|am_nam 		; $8A  TXA
-00E6FA  2  00           	.byte	ops0|am_nam 		; $8B  PHB
-00E6FB  2  20           	.byte	ops2|am_nam 		; $8C  STY abs
-00E6FC  2  20           	.byte	ops2|am_nam 		; $8D  STA abs
-00E6FD  2  20           	.byte	ops2|am_nam 		; $8E  STX abs
-00E6FE  2  30           	.byte	ops3|am_nam 		; $8F  STA absl
-00E6FF  2               ;
-00E6FF  2  50           	.byte	bop1|am_nam 		; $90  BCC abs
-00E700  2  18           	.byte	ops1|am_indy		; $91  STA (<dp>),Y
-00E701  2  14           	.byte	ops1|am_ind 		; $92  STA (dp)
-00E702  2  1A           	.byte	ops1|am_stky		; $93  STA (<offset>,S),Y
-00E703  2  12           	.byte	ops1|am_adrx		; $94  STY dp,X
-00E704  2  12           	.byte	ops1|am_adrx		; $95  STA dp,X
-00E705  2  13           	.byte	ops1|am_adry		; $96  STX dp,Y
-00E706  2  16           	.byte	ops1|am_indly 		; $97  STA [dp],Y
-00E707  2  00           	.byte	ops0|am_nam 		; $98  TYA
-00E708  2  23           	.byte	ops2|am_adry		; $99  STA abs,Y
-00E709  2  00           	.byte	ops0|am_nam 		; $9A  TXS
-00E70A  2  00           	.byte	ops0|am_nam 		; $9B  TXY
-00E70B  2  20           	.byte	ops2|am_nam 		; $9C  STZ abs
-00E70C  2  22           	.byte	ops2|am_adrx		; $9D  STA abs,X
-00E70D  2  22           	.byte	ops2|am_adrx		; $9E  STZ abs,X
-00E70E  2  32           	.byte	ops3|am_adrx		; $9F  STA absl,X
-00E70F  2               ;
-00E70F  2  91           	.byte	vops|am_imm 		; $A0  LDY #
-00E710  2  17           	.byte	ops1|am_indx		; $A1  LDA (dp,X)
-00E711  2  91           	.byte	vops|am_imm 		; $A2  LDX #
-00E712  2  19           	.byte	ops1|am_stk 		; $A3  LDA <offset>,S
-00E713  2  10           	.byte	ops1|am_nam 		; $A4  LDY dp
-00E714  2  10           	.byte	ops1|am_nam 		; $A5  LDA dp
-00E715  2  10           	.byte	ops1|am_nam 		; $A6  LDX dp
-00E716  2  15           	.byte	ops1|am_indl		; $A7  LDA [dp]
-00E717  2  00           	.byte	ops0|am_nam 		; $A8  TAY
-00E718  2  91           	.byte	vops|am_imm 		; $A9  LDA #
-00E719  2  00           	.byte	ops0|am_nam 		; $AA  TAX
-00E71A  2  00           	.byte	ops0|am_nam 		; $AB  PLB
-00E71B  2  20           	.byte	ops2|am_nam 		; $AC  LDY abs
-00E71C  2  20           	.byte	ops2|am_nam 		; $AD  LDA abs
-00E71D  2  20           	.byte	ops2|am_nam 		; $AE  LDX abs
-00E71E  2  30           	.byte	ops3|am_nam 		; $AF  LDA absl
-00E71F  2               ;
-00E71F  2  50           	.byte	bop1|am_nam 		; $B0  BCS abs
-00E720  2  18           	.byte	ops1|am_indy		; $B1  LDA (<dp>),Y
-00E721  2  14           	.byte	ops1|am_ind 		; $B2  LDA (dp)
-00E722  2  1A           	.byte	ops1|am_stky		; $B3  LDA (<offset>,S),Y
-00E723  2  12           	.byte	ops1|am_adrx		; $B4  LDY dp,X
-00E724  2  12           	.byte	ops1|am_adrx		; $B5  LDA dp,X
-00E725  2  13           	.byte	ops1|am_adry		; $B6  LDX dp,Y
-00E726  2  16           	.byte	ops1|am_indly 		; $B7  LDA [dp],Y
-00E727  2  00           	.byte	ops0|am_nam 		; $B8  CLV
-00E728  2  23           	.byte	ops2|am_adry		; $B9  LDA abs,Y
-00E729  2  00           	.byte	ops0|am_nam 		; $BA  TSX
-00E72A  2  00           	.byte	ops0|am_nam 		; $BB  TYX
-00E72B  2  22           	.byte	ops2|am_adrx		; $BC  LDY abs,X
-00E72C  2  22           	.byte	ops2|am_adrx		; $BD  LDA abs,X
-00E72D  2  23           	.byte	ops2|am_adry		; $BE  LDX abs,Y
-00E72E  2  32           	.byte	ops3|am_adrx		; $BF  LDA absl,X
-00E72F  2               ;
-00E72F  2  91           	.byte	vops|am_imm 		; $C0  CPY #
-00E730  2  17           	.byte	ops1|am_indx		; $C1  CMP (dp,X)
-00E731  2  11           	.byte	ops1|am_imm 		; $C2  REP #
-00E732  2  19           	.byte	ops1|am_stk 		; $C3  CMP <offset>,S
-00E733  2  10           	.byte	ops1|am_nam 		; $C4  CPY dp
-00E734  2  10           	.byte	ops1|am_nam 		; $C5  CMP dp
-00E735  2  10           	.byte	ops1|am_nam 		; $C6  DEC dp
-00E736  2  15           	.byte	ops1|am_indl		; $C7  CMP [dp]
-00E737  2  00           	.byte	ops0|am_nam 		; $C8  INY
-00E738  2  91           	.byte	vops|am_imm 		; $C9  CMP #
-00E739  2  00           	.byte	ops0|am_nam 		; $CA  DEX
-00E73A  2  00           	.byte	ops0|am_nam 		; $CB  WAI
-00E73B  2  20           	.byte	ops2|am_nam 		; $CC  CPY abs
-00E73C  2  20           	.byte	ops2|am_nam 		; $CD  CMP abs
-00E73D  2  20           	.byte	ops2|am_nam 		; $CE  DEC abs
-00E73E  2  30           	.byte	ops3|am_nam 		; $CF  CMP absl
-00E73F  2               ;
-00E73F  2  50           	.byte	bop1|am_nam 		; $D0  BNE abs
-00E740  2  18           	.byte	ops1|am_indy		; $D1  CMP (<dp>),Y
-00E741  2  14           	.byte	ops1|am_ind 		; $D2  CMP (dp)
-00E742  2  1A           	.byte	ops1|am_stky		; $D3  CMP (<offset>,S),Y
-00E743  2  10           	.byte	ops1|am_nam 		; $D4  PEI dp
-00E744  2  12           	.byte	ops1|am_adrx		; $D5  CMP dp,X
-00E745  2  12           	.byte	ops1|am_adrx		; $D6  DEC dp,X
-00E746  2  16           	.byte	ops1|am_indly 		; $D7  CMP [dp],Y
-00E747  2  00           	.byte	ops0|am_nam 		; $D8  CLD
-00E748  2  23           	.byte	ops2|am_adry		; $D9  CMP abs,Y
-00E749  2  00           	.byte	ops0|am_nam 		; $DA  PHX
-00E74A  2  00           	.byte	ops0|am_nam 		; $DB  STP
-00E74B  2  25           	.byte	ops2|am_indl		; $DC  JMP [abs]
-00E74C  2  22           	.byte	ops2|am_adrx		; $DD  CMP abs,X
-00E74D  2  22           	.byte	ops2|am_adrx		; $DE  DEC abs,X
-00E74E  2  32           	.byte	ops3|am_adrx		; $DF  CMP absl,X
-00E74F  2               ;
-00E74F  2  91           	.byte	vops|am_imm 		; $E0  CPX #
-00E750  2  17           	.byte	ops1|am_indx		; $E1  SBC (dp,X)
-00E751  2  11           	.byte	ops1|am_imm 		; $E2  SEP #
-00E752  2  19           	.byte	ops1|am_stk 		; $E3  SBC <offset>,S
-00E753  2  10           	.byte	ops1|am_nam 		; $E4  CPX dp
-00E754  2  10           	.byte	ops1|am_nam 		; $E5  SBC dp
-00E755  2  10           	.byte	ops1|am_nam 		; $E6  INC dp
-00E756  2  15           	.byte	ops1|am_indl		; $E7  SBC [dp]
-00E757  2  00           	.byte	ops0|am_nam 		; $E8  INX
-00E758  2  91           	.byte	vops|am_imm 		; $E9  SBC #
-00E759  2  00           	.byte	ops0|am_nam 		; $EA  NOP
-00E75A  2  00           	.byte	ops0|am_nam 		; $EB  XBA
-00E75B  2  20           	.byte	ops2|am_nam 		; $EC  CPX abs
-00E75C  2  20           	.byte	ops2|am_nam 		; $ED  SBC abs
-00E75D  2  20           	.byte	ops2|am_nam 		; $EE  INC abs
-00E75E  2  30           	.byte	ops3|am_nam 		; $EF  SBC absl
-00E75F  2               ;
-00E75F  2  50           	.byte	bop1|am_nam 		; $F0  BEQ abs
-00E760  2  18           	.byte	ops1|am_indy		; $F1  SBC (<dp>),Y
-00E761  2  14           	.byte	ops1|am_ind 		; $F2  SBC (dp)
-00E762  2  1A           	.byte	ops1|am_stky		; $F3  SBC (<offset>,S),Y
-00E763  2  21           	.byte	ops2|am_imm 		; $F4  PEA #
-00E764  2  12           	.byte	ops1|am_adrx		; $F5  SBC dp,X
-00E765  2  12           	.byte	ops1|am_adrx		; $F6  INC dp,X
-00E766  2  16           	.byte	ops1|am_indly 		; $F7  SBC [dp],Y
-00E767  2  00           	.byte	ops0|am_nam 		; $F8  SED
-00E768  2  23           	.byte	ops2|am_adry		; $F9  SBC abs,Y
-00E769  2  00           	.byte	ops0|am_nam 		; $FA  PLX
-00E76A  2  00           	.byte	ops0|am_nam 		; $FB  XCE
-00E76B  2  27           	.byte	ops2|am_indx		; $FC  JSR (abs,X)
-00E76C  2  22           	.byte	ops2|am_adrx		; $FD  SBC abs,X
-00E76D  2  22           	.byte	ops2|am_adrx		; $FE  INC abs,X
-00E76E  2  32           	.byte	ops3|am_adrx		; $FF  SBC absl,X
-00E76F  2               
-00E76F  2               ;------------------------------------------------------------------------------
-00E76F  2               ; .X & .Y immediate mode opcodes...
-00E76F  2               ;
-00E76F  2               ;------------------------------------------------------------------------------
-00E76F  2               vopidx:
-00E76F  2  E0           	.byte	opc_cpxi        	; CPX #
-00E770  2  C0           	.byte	opc_cpyi        	; CPY #
-00E771  2  A2           	.byte	opc_ldxi        	; LDX #
-00E772  2  A0           	.byte	opc_ldyi        	; LDY #
-00E773  2               n_vopidx	= * - vopidx		; # of opcodes
-00E773  2               
-00E773  2               ;------------------------------------------------------------------------------
-00E773  2               ; Addressing Mode Symbology Lookup
-00E773  2               ;------------------------------------------------------------------------------
-00E773  2               ms_lutab:
-00E773  2  8B E7        	.word	ms_nam			; No symbol
-00E775  2  95 E7        	.word	ms_imm			; #
-00E777  2  8D E7        	.word	ms_addrx		; <addr>, X
-00E779  2  91 E7        	.word	ms_addry		; <addr>, Y
-00E77B  2  97 E7        	.word	ms_ind			; (<addr>)
-00E77D  2  9A E7        	.word	ms_indl			; [<dp>]
-00E77F  2  9D E7        	.word	ms_indly		; [<dp>], Y
-00E781  2  A2 E7        	.word	ms_indx			; (<addr>, X)
-00E783  2  A7 E7        	.word	ms_indy			; (<dp>), Y
-00E785  2  AF E7        	.word	ms_stk			; <offset>, S
-00E787  2  B3 E7        	.word	ms_stky			; (<offset>, S), Y
-00E789  2  8B E7        	.word	ms_nam			; <sbank>, <dbank>
-00E78B  2               
-00E78B  2               ;------------------------------------------------------------------------------
-00E78B  2               ; Addressing Mode Symbology String
-00E78B  2               ;------------------------------------------------------------------------------
-00E78B  2               ms_nam:
-00E78B  2  20 00        	.byte	' ',$00			; No symbol
-00E78D  2               ms_addrx:
-00E78D  2  20 2C 58 00  	.byte	" ,X", $00		; <addr>, X
-00E791  2               ms_addry:
-00E791  2  20 2C 59 00  	.byte	" ,Y", $00		; <addr>, Y
-00E795  2               ms_imm:
-00E795  2  23 00        	.byte	'#', $00		; #
-00E797  2               ms_ind:
-00E797  2  28 29 00     	.byte	"()", $00		; (<addr>)
-00E79A  2               ms_indl:
-00E79A  2  5B 5D 00     	.byte	"[]", $00		; [<dp>]
-00E79D  2               ms_indly:
-00E79D  2  5B 5D 2C 59  	.byte	"[],Y", $00		; [<dp>], Y
-00E7A1  2  00           
-00E7A2  2               ms_indx:
-00E7A2  2  28 2C 58 29  	.byte	"(,X)", $00		; (<addr>, X)
-00E7A6  2  00           
-00E7A7  2               ms_indy:
-00E7A7  2  28 29 2C 59  	.byte	"(),Y", $00		; (<dp>), Y
-00E7AB  2  00           
-00E7AC  2               ms_move:
-00E7AC  2  2C 24 00     	.byte	",$", $00		; <sbank>, <dbank>
-00E7AF  2               ms_stk:
-00E7AF  2  20 2C 53 00  	.byte	" ,S", $00		; <offset>, S
-00E7B3  2               ms_stky:
-00E7B3  2  28 2C 53 29  	.byte	"(,S),Y", $00		; (<offset>, S), Y
-00E7B7  2  2C 59 00     
-00E7BA  2               
-00E7BA  2               ;------------------------------------------------------------------------------
-00E7BA  2               ; Console Display Control Strings
-00E7BA  2               ;------------------------------------------------------------------------------
-00E7BA  2               ;dc_bf:
-00E7BA  2               ;	.byte	BF			; Enable reverse foreground
-00E7BA  2               ;	.byte	$00
-00E7BA  2               
-00E7BA  2               dc_bs:
-00E7BA  2  08           	.byte	BS			; Destructive backspace
-00E7BB  2  00           	.byte	$00
+00E4A6  2  09           	.byte	9
+00E4A7  2  02           	.byte	2
+00E4A8  2               numstab:				; Bin to ASCII conversion numerals
+00E4A8  2  0C           	.byte	12
+00E4A9  2  0C           	.byte	12
+00E4AA  2  10           	.byte	16
+00E4AB  2  30           	.byte	48
+00E4AC  2               radxtab:				; Supported radices
+00E4AC  2  24           	.byte	c_hex			;  - Hexadecimal radix
+00E4AD  2  2B           	.byte	c_dec			;  - Decimal radix
+00E4AE  2  40           	.byte	c_oct			;  - Octal radix
+00E4AF  2  25           	.byte	c_bin			;  - Binary radix
+00E4B0  2               n_radix		= * - radxtab		; # recognized radices
+00E4B0  2               
+00E4B0  2               ;------------------------------------------------------------------------------
+00E4B0  2               ; Shadow MPU Register Sizes
+00E4B0  2               ;------------------------------------------------------------------------------
+00E4B0  2               rcvltab:
+00E4B0  2  02           	.byte	s_mpupbrx + s_byte	; PB
+00E4B1  2  03           	.byte	s_mpupcx  + s_byte	; PC
+00E4B2  2  02           	.byte	s_mpusrx  + s_byte	; SR
+00E4B3  2  03           	.byte	s_word    + s_byte	; .C
+00E4B4  2  03           	.byte	s_word    + s_byte	; .X
+00E4B5  2  03           	.byte	s_word    + s_byte	; .Y
+00E4B6  2  03           	.byte	s_mpuspx  + s_byte	; SP
+00E4B7  2  03           	.byte	s_mpudpx  + s_byte	; DP
+00E4B8  2  02           	.byte	s_mpudbrx + s_byte	; DB
+00E4B9  2               n_regchv	= * - rcvltab		; Total shadow registers
+00E4B9  2               
+00E4B9  2               ;------------------------------------------------------------------------------
+00E4B9  2               ; Assembler/Disassembler Data Tables
+00E4B9  2               ;------------------------------------------------------------------------------
+00E4B9  2               mnetab:
+00E4B9  2  F2 10        	.word	mne_xba			;  0 - XBA
+00E4BB  2  5A 11        	.word	mne_lda			;  1 - LDA
+00E4BD  2  A2 11         	.word	mne_pea			;  2 - PEA
+00E4BF  2  62 12         	.word	mne_pha			;  3 - PHA
+00E4C1  2  62 13         	.word	mne_pla			;  4 - PLA
+00E4C3  2  C6 14         	.word	mne_bra			;  5 - BRA
+00E4C5  2  E0 14         	.word	mne_ora			;  6 - ORA
+00E4C7  2  68 15         	.word	mne_sta			;  7 - STA
+00E4C9  2  6A 16         	.word	mne_txa			;  8 - TXA
+00E4CB  2  6A 16         	.word	mne_tya			;  9 - TYA
+00E4CD  2  62 1A         	.word	mne_phb			; 10 - PHB
+00E4CF  2  62 1B         	.word	mne_plb			; 11 - PLB
+00E4D1  2  EA 1C         	.word	mne_trb			; 12 - TRB
+00E4D3  2  2A 1D         	.word	mne_tsb			; 13 - TSB
+00E4D5  2  E8 20         	.word	mne_sbc			; 14 - SBC
+00E4D7  2  06 21         	.word	mne_bcc			; 15 - BCC
+00E4D9  2  44 21         	.word	mne_adc			; 16 - ADC
+00E4DB  2  6A 21         	.word	mne_tdc			; 17 - TDC
+00E4DD  2  8A 21         	.word	mne_dec			; 18 - DEC
+00E4DF  2  A8 21         	.word	mne_sec			; 19 - SEC
+00E4E1  2  48 23         	.word	mne_clc			; 20 - CLC
+00E4E3  2  D4 23         	.word	mne_inc			; 21 - INC
+00E4E5  2  2A 25         	.word	mne_tsc			; 22 - TSC
+00E4E7  2  C6 25         	.word	mne_bvc			; 23 - BVC
+00E4E9  2  2A 29         	.word	mne_tcd			; 24 - TCD
+00E4EB  2  A8 29         	.word	mne_sed			; 25 - SED
+00E4ED  2  62 2A         	.word	mne_phd			; 26 - PHD
+00E4EF  2  48 2B         	.word	mne_cld			; 27 - CLD
+00E4F1  2  62 2B         	.word	mne_pld			; 28 - PLD
+00E4F3  2  C4 2B         	.word	mne_and			; 29 - AND
+00E4F5  2  32 31         	.word	mne_xce			; 30 - XCE
+00E4F7  2  C6 33         	.word	mne_bne			; 31 - BNE
+00E4F9  2  B0 50         	.word	mne_wai			; 32 - WAI
+00E4FB  2  A2 51         	.word	mne_pei			; 33 - PEI
+00E4FD  2  A8 51         	.word	mne_sei			; 34 - SEI
+00E4FF  2  48 53         	.word	mne_cli			; 35 - CLI
+00E501  2  86 53         	.word	mne_bmi			; 36 - BMI
+00E503  2  66 55         	.word	mne_rti			; 37 - RTI
+00E505  2  62 62         	.word	mne_phk			; 38 - PHK
+00E507  2  C6 64         	.word	mne_brk			; 39 - BRK
+00E509  2  96 6B         	.word	mne_jml			; 40 - JML
+00E50B  2  26 6C         	.word	mne_rol			; 41 - ROL
+00E50D  2  46 6C         	.word	mne_bpl			; 42 - BPL
+00E50F  2  C6 6C         	.word	mne_brl			; 43 - BRL
+00E511  2  04 6D         	.word	mne_asl			; 44 - ASL
+00E513  2  16 6D         	.word	mne_jsl			; 45 - JSL
+00E515  2  66 6D         	.word	mne_rtl			; 46 - RTL
+00E517  2  70 71         	.word	mne_wdm			; 47 - WDM
+00E519  2  DC 7D         	.word	mne_mvn			; 48 - MVN
+00E51B  2  A6 89         	.word	mne_rep			; 49 - REP
+00E51D  2  A8 89         	.word	mne_sep			; 50 - SEP
+00E51F  2  62 8A         	.word	mne_php			; 51 - PHP
+00E521  2  62 8B         	.word	mne_plp			; 52 - PLP
+00E523  2  88 8B         	.word	mne_cmp			; 53 - CMP
+00E525  2  96 8B         	.word	mne_jmp			; 54 - JMP
+00E527  2  08 8C         	.word	mne_cop			; 55 - COP
+00E529  2  1E 8C         	.word	mne_nop			; 56 - NOP
+00E52B  2  68 8D         	.word	mne_stp			; 57 - STP
+00E52D  2  DC 8D         	.word	mne_mvp			; 58 - MVP
+00E52F  2  86 91         	.word	mne_beq			; 59 - BEQ
+00E531  2  A2 99         	.word	mne_per			; 60 - PER
+00E533  2  0C 9C         	.word	mne_eor			; 61 - EOR
+00E535  2  26 9C         	.word	mne_ror			; 62 - ROR
+00E537  2  16 9D         	.word	mne_jsr			; 63 - JSR
+00E539  2  1A 9D         	.word	mne_lsr			; 64 - LSR
+00E53B  2  06 A1         	.word	mne_bcs			; 65 - BCS
+00E53D  2  2A A1         	.word	mne_tcs			; 66 - TCS
+00E53F  2  66 A5         	.word	mne_rts			; 67 - RTS
+00E541  2  C6 A5         	.word	mne_bvs			; 68 - BVS
+00E543  2  6A A6         	.word	mne_txs			; 69 - TXS
+00E545  2  86 AA         	.word	mne_bit			; 70 - BIT
+00E547  2  48 BB         	.word	mne_clv			; 71 - CLV
+00E549  2  AA C8         	.word	mne_tax			; 72 - TAX
+00E54B  2  5A C9         	.word	mne_ldx			; 73 - LDX
+00E54D  2  8A C9         	.word	mne_dex			; 74 - DEX
+00E54F  2  62 CA         	.word	mne_phx			; 75 - PHX
+00E551  2  62 CB         	.word	mne_plx			; 76 - PLX
+00E553  2  D4 CB         	.word	mne_inx			; 77 - INX
+00E555  2  48 CC         	.word	mne_cpx			; 78 - CPX
+00E557  2  2A CD         	.word	mne_tsx			; 79 - TSX
+00E559  2  68 CD         	.word	mne_stx			; 80 - STX
+00E55B  2  AA CE         	.word	mne_tyx			; 81 - TYX
+00E55D  2  AA D0         	.word	mne_tay			; 82 - TAY
+00E55F  2  5A D1         	.word	mne_ldy			; 83 - LDY
+00E561  2  8A D1         	.word	mne_dey			; 84 - DEY
+00E563  2  62 D2         	.word	mne_phy			; 85 - PHY
+00E565  2  62 D3         	.word	mne_ply			; 86 - PLY
+00E567  2  D4 D3         	.word	mne_iny			; 87 - INY
+00E569  2  48 D4         	.word	mne_cpy			; 88 - CPY
+00E56B  2  68 D5         	.word	mne_sty			; 89 - STY
+00E56D  2  6A D6         	.word	mne_txy			; 90 - TXY
+00E56F  2  68 DD         	.word	mne_stz			; 91 - STZ
+00E571  2               
+00E571  2               s_mnetab	= * - mnetab		; Menmonic table size
+00E571  2               n_mnemon	= s_mnetab / s_word	; Total # mnemonics
+00E571  2               
+00E571  2               ;------------------------------------------------------------------------------
+00E571  2               ; Mnemonic Lookup Indices in Opcode Order
+00E571  2               ;------------------------------------------------------------------------------
+00E571  2               mnetabidx:
+00E571  2  27           	.byte	mne_brkx		; $00  BRK
+00E572  2  06            	.byte	mne_orax		; $01  ORA (dp,X)
+00E573  2  37            	.byte	mne_copx		; $02  COP
+00E574  2  06            	.byte	mne_orax		; $03  ORA <offset>,S
+00E575  2  0D            	.byte	mne_tsbx		; $04  TSB dp
+00E576  2  06            	.byte	mne_orax		; $05  ORA dp
+00E577  2  2C            	.byte	mne_aslx		; $06  ASL dp
+00E578  2  06            	.byte	mne_orax		; $07  ORA [dp]
+00E579  2  33            	.byte	mne_phpx		; $08  PHP
+00E57A  2  06            	.byte	mne_orax		; $09  ORA #
+00E57B  2  2C            	.byte	mne_aslx		; $0A  ASL A
+00E57C  2  1A            	.byte	mne_phdx		; $0B  PHD
+00E57D  2  0D            	.byte	mne_tsbx		; $0C  TSB abs
+00E57E  2  06            	.byte	mne_orax		; $0D  ORA abs
+00E57F  2  2C            	.byte	mne_aslx		; $0E  ASL abs
+00E580  2  06            	.byte	mne_orax		; $0F  ORA absl
+00E581  2               ;
+00E581  2  2A            	.byte	mne_bplx		; $10  BPL abs
+00E582  2  06            	.byte	mne_orax		; $11  ORA (<dp>),Y
+00E583  2  06            	.byte	mne_orax		; $12  ORA (dp)
+00E584  2  06            	.byte	mne_orax		; $13  ORA (<offset>,S),Y
+00E585  2  0C            	.byte	mne_trbx		; $14  TRB dp
+00E586  2  06            	.byte	mne_orax		; $15  ORA dp,X
+00E587  2  2C            	.byte	mne_aslx		; $16  ASL dp,X
+00E588  2  06            	.byte	mne_orax		; $17  ORA [dp],Y
+00E589  2  14            	.byte	mne_clcx		; $18  CLC
+00E58A  2  06            	.byte	mne_orax		; $19  ORA abs
+00E58B  2  15            	.byte	mne_incx		; $1A  INC A
+00E58C  2  42            	.byte	mne_tcsx		; $1B  TCS
+00E58D  2  0C            	.byte	mne_trbx		; $1C  TRB abs
+00E58E  2  06            	.byte	mne_orax		; $1D  ORA abs,X
+00E58F  2  2C            	.byte	mne_aslx		; $1E  ASL abs,X
+00E590  2  06            	.byte	mne_orax		; $1F  ORA absl,X
+00E591  2               ;
+00E591  2  3F            	.byte	mne_jsrx		; $20  JSR abs
+00E592  2  1D            	.byte	mne_andx		; $21  AND (dp,X)
+00E593  2  2D            	.byte	mne_jslx		; $22  JSL absl
+00E594  2  1D            	.byte	mne_andx		; $23  AND <offset>,S
+00E595  2  46            	.byte	mne_bitx		; $24  BIT dp
+00E596  2  1D            	.byte	mne_andx		; $25  AND dp
+00E597  2  29            	.byte	mne_rolx		; $26  ROL dp
+00E598  2  1D            	.byte	mne_andx		; $27  AND [dp]
+00E599  2  34            	.byte	mne_plpx		; $28  PLP
+00E59A  2  1D            	.byte	mne_andx		; $29  AND #
+00E59B  2  29            	.byte	mne_rolx		; $2A  ROL A
+00E59C  2  1C            	.byte	mne_pldx		; $2B  PLD
+00E59D  2  46            	.byte	mne_bitx		; $2C  BIT abs
+00E59E  2  1D            	.byte	mne_andx		; $2D  AND abs
+00E59F  2  29            	.byte	mne_rolx		; $2E  ROL abs
+00E5A0  2  1D            	.byte	mne_andx		; $2F  AND absl
+00E5A1  2               ;
+00E5A1  2  24            	.byte	mne_bmix		; $30  BMI abs
+00E5A2  2  1D            	.byte	mne_andx		; $31  AND (<dp>),Y
+00E5A3  2  1D            	.byte	mne_andx		; $32  AND (dp)
+00E5A4  2  1D            	.byte	mne_andx		; $33  AND (<offset>,S),Y
+00E5A5  2  46            	.byte	mne_bitx		; $34  BIT dp,X
+00E5A6  2  1D            	.byte	mne_andx		; $35  AND dp,X
+00E5A7  2  29            	.byte	mne_rolx		; $36  ROL dp,X
+00E5A8  2  1D            	.byte	mne_andx		; $37  AND [dp],Y
+00E5A9  2  13            	.byte	mne_secx		; $38  SEC
+00E5AA  2  1D            	.byte	mne_andx		; $39  AND abs,Y
+00E5AB  2  12            	.byte	mne_decx		; $3A  DEC A
+00E5AC  2  16            	.byte	mne_tscx		; $3B  TSC
+00E5AD  2  46            	.byte	mne_bitx		; $3C  BIT abs,X
+00E5AE  2  1D            	.byte	mne_andx		; $3D  AND abs,X
+00E5AF  2  29            	.byte	mne_rolx		; $3E  ROL abs,X
+00E5B0  2  1D            	.byte	mne_andx		; $3F  AND absl,X
+00E5B1  2               ;
+00E5B1  2  25            	.byte	mne_rtix		; $40  RTI
+00E5B2  2  3D            	.byte	mne_eorx		; $41  EOR (dp,X)
+00E5B3  2  2F            	.byte	mne_wdmx		; $42  WDM
+00E5B4  2  3D            	.byte	mne_eorx		; $43  EOR <offset>,S
+00E5B5  2  3A            	.byte	mne_mvpx		; $44  MVP sb,db
+00E5B6  2  3D            	.byte	mne_eorx		; $45  EOR dp
+00E5B7  2  40            	.byte	mne_lsrx		; $46  LSR dp
+00E5B8  2  3D            	.byte	mne_eorx		; $47  EOR [dp]
+00E5B9  2  03            	.byte	mne_phax		; $48  PHA
+00E5BA  2  3D            	.byte	mne_eorx		; $49  EOR #
+00E5BB  2  40            	.byte	mne_lsrx		; $4A  LSR A
+00E5BC  2  26            	.byte	mne_phkx		; $4B  PHK
+00E5BD  2  36            	.byte	mne_jmpx		; $4C  JMP abs
+00E5BE  2  3D            	.byte	mne_eorx		; $4D  EOR abs
+00E5BF  2  40            	.byte	mne_lsrx		; $4E  LSR abs
+00E5C0  2  3D            	.byte	mne_eorx		; $4F  EOR absl
+00E5C1  2               ;
+00E5C1  2  17            	.byte	mne_bvcx		; $50  BVC abs
+00E5C2  2  3D            	.byte	mne_eorx		; $51  EOR (<dp>),Y
+00E5C3  2  3D            	.byte	mne_eorx		; $52  EOR (dp)
+00E5C4  2  3D            	.byte	mne_eorx		; $53  EOR (<offset>,S),Y
+00E5C5  2  30            	.byte	mne_mvnx		; $54  MVN sb,db
+00E5C6  2  3D            	.byte	mne_eorx		; $55  EOR dp,X
+00E5C7  2  40            	.byte	mne_lsrx		; $56  LSR dp,X
+00E5C8  2  3D            	.byte	mne_eorx		; $57  EOR [dp],Y
+00E5C9  2  23            	.byte	mne_clix		; $58  CLI
+00E5CA  2  3D            	.byte	mne_eorx		; $59  EOR abs,Y
+00E5CB  2  55            	.byte	mne_phyx		; $5A  PHY
+00E5CC  2  18            	.byte	mne_tcdx		; $5B  TCD
+00E5CD  2  28            	.byte	mne_jmlx		; $5C  JML absl
+00E5CE  2  3D            	.byte	mne_eorx		; $5D  EOR abs,X
+00E5CF  2  40            	.byte	mne_lsrx		; $5E  LSR abs,X
+00E5D0  2  3D            	.byte	mne_eorx		; $5F  EOR absl,X
+00E5D1  2               ;
+00E5D1  2  43            	.byte	mne_rtsx		; $60  RTS
+00E5D2  2  10            	.byte	mne_adcx		; $61  ADC (dp,X)
+00E5D3  2  3C            	.byte	mne_perx		; $62  PER
+00E5D4  2  10            	.byte	mne_adcx		; $63  ADC <offset>,S
+00E5D5  2  5B            	.byte	mne_stzx		; $64  STZ dp
+00E5D6  2  10            	.byte	mne_adcx		; $65  ADC dp
+00E5D7  2  3E            	.byte	mne_rorx		; $66  ROR dp
+00E5D8  2  10            	.byte	mne_adcx		; $67  ADC [dp]
+00E5D9  2  04            	.byte	mne_plax		; $68  PLA
+00E5DA  2  10            	.byte	mne_adcx		; $69  ADC #
+00E5DB  2  3E            	.byte	mne_rorx		; $6A  ROR A
+00E5DC  2  2E            	.byte	mne_rtlx		; $6B  RTL
+00E5DD  2  36            	.byte	mne_jmpx		; $6C  JMP (abs)
+00E5DE  2  10            	.byte	mne_adcx		; $6D  ADC abs
+00E5DF  2  3E            	.byte	mne_rorx		; $6E  ROR abs
+00E5E0  2  10            	.byte	mne_adcx		; $6F  ADC absl
+00E5E1  2               ;
+00E5E1  2  44            	.byte	mne_bvsx		; $70  BVS abs
+00E5E2  2  10            	.byte	mne_adcx		; $71  ADC (<dp>),Y
+00E5E3  2  10            	.byte	mne_adcx		; $72  ADC (dp)
+00E5E4  2  10            	.byte	mne_adcx		; $73  ADC (<offset>,S),Y
+00E5E5  2  5B            	.byte	mne_stzx		; $74  STZ dp,X
+00E5E6  2  10            	.byte	mne_adcx		; $75  ADC dp,X
+00E5E7  2  3E            	.byte	mne_rorx		; $76  ROR dp,X
+00E5E8  2  10            	.byte	mne_adcx		; $77  ADC [dp],Y
+00E5E9  2  22            	.byte	mne_seix		; $78  SEI
+00E5EA  2  10            	.byte	mne_adcx		; $79  ADC abs,Y
+00E5EB  2  56            	.byte	mne_plyx		; $7A  PLY
+00E5EC  2  11            	.byte	mne_tdcx		; $7B  TDC
+00E5ED  2  36            	.byte	mne_jmpx		; $7C  JMP (abs,X)
+00E5EE  2  10            	.byte	mne_adcx		; $7D  ADC abs,X
+00E5EF  2  3E            	.byte	mne_rorx		; $7E  ROR abs,X
+00E5F0  2  10            	.byte	mne_adcx		; $7F  ADC absl,X
+00E5F1  2               ;
+00E5F1  2  05            	.byte	mne_brax		; $80  BRA abs
+00E5F2  2  07            	.byte	mne_stax		; $81  STA (dp,X)
+00E5F3  2  2B            	.byte	mne_brlx		; $82  BRL abs
+00E5F4  2  07            	.byte	mne_stax		; $83  STA <offset>,S
+00E5F5  2  59            	.byte	mne_styx		; $84  STY dp
+00E5F6  2  07            	.byte	mne_stax		; $85  STA dp
+00E5F7  2  50            	.byte	mne_stxx		; $86  STX dp
+00E5F8  2  07            	.byte	mne_stax		; $87  STA [dp]
+00E5F9  2  54            	.byte	mne_deyx		; $88  DEY
+00E5FA  2  46            	.byte	mne_bitx		; $89  BIT #
+00E5FB  2  08            	.byte	mne_txax		; $8A  TXA
+00E5FC  2  0A            	.byte	mne_phbx		; $8B  PHB
+00E5FD  2  59            	.byte	mne_styx		; $8C  STY abs
+00E5FE  2  07            	.byte	mne_stax		; $8D  STA abs
+00E5FF  2  50            	.byte	mne_stxx		; $8E  STX abs
+00E600  2  07            	.byte	mne_stax		; $8F  STA absl
+00E601  2               ;
+00E601  2  0F            	.byte	mne_bccx		; $90  BCC abs
+00E602  2  07            	.byte	mne_stax		; $91  STA (<dp>),Y
+00E603  2  07            	.byte	mne_stax		; $92  STA (dp)
+00E604  2  07            	.byte	mne_stax		; $93  STA (<offset>,S),Y
+00E605  2  59            	.byte	mne_styx		; $94  STY dp,X
+00E606  2  07            	.byte	mne_stax		; $95  STA dp,X
+00E607  2  50            	.byte	mne_stxx		; $96  STX dp,Y
+00E608  2  07            	.byte	mne_stax		; $97  STA [dp],Y
+00E609  2  09            	.byte	mne_tyax		; $98  TYA
+00E60A  2  07            	.byte	mne_stax		; $99  STA abs,Y
+00E60B  2  45            	.byte	mne_txsx		; $9A  TXS
+00E60C  2  5A            	.byte	mne_txyx		; $9B  TXY
+00E60D  2  5B            	.byte	mne_stzx		; $9C  STZ abs
+00E60E  2  07            	.byte	mne_stax		; $9D  STA abs,X
+00E60F  2  5B            	.byte	mne_stzx		; $9E  STZ abs,X
+00E610  2  07            	.byte	mne_stax		; $9F  STA absl,X
+00E611  2               ;
+00E611  2  53            	.byte	mne_ldyx		; $A0  LDY #
+00E612  2  01            	.byte	mne_ldax		; $A1  LDA (dp,X)
+00E613  2  49            	.byte	mne_ldxx		; $A2  LDX #
+00E614  2  01            	.byte	mne_ldax		; $A3  LDA <offset>,S
+00E615  2  53            	.byte	mne_ldyx		; $A4  LDY dp
+00E616  2  01            	.byte	mne_ldax		; $A5  LDA dp
+00E617  2  49            	.byte	mne_ldxx		; $A6  LDX dp
+00E618  2  01            	.byte	mne_ldax		; $A7  LDA [dp]
+00E619  2  52            	.byte	mne_tayx		; $A8  TAY
+00E61A  2  01            	.byte	mne_ldax		; $A9  LDA #
+00E61B  2  48            	.byte	mne_taxx		; $AA  TAX
+00E61C  2  0B            	.byte	mne_plbx		; $AB  PLB
+00E61D  2  53            	.byte	mne_ldyx		; $AC  LDY abs
+00E61E  2  01            	.byte	mne_ldax		; $AD  LDA abs
+00E61F  2  49            	.byte	mne_ldxx		; $AE  LDX abs
+00E620  2  01            	.byte	mne_ldax		; $AF  LDA absl
+00E621  2               ;
+00E621  2  41            	.byte	mne_bcsx		; $B0  BCS abs
+00E622  2  01            	.byte	mne_ldax		; $B1  LDA (<dp>),Y
+00E623  2  01            	.byte	mne_ldax		; $B2  LDA (dp)
+00E624  2  01            	.byte	mne_ldax		; $B3  LDA (<offset>,S),Y
+00E625  2  53            	.byte	mne_ldyx		; $B4  LDY dp,X
+00E626  2  01            	.byte	mne_ldax		; $B5  LDA dp,X
+00E627  2  49            	.byte	mne_ldxx		; $B6  LDX dp,Y
+00E628  2  01            	.byte	mne_ldax		; $B7  LDA [dp],Y
+00E629  2  47            	.byte	mne_clvx		; $B8  CLV
+00E62A  2  01            	.byte	mne_ldax		; $B9  LDA abs,Y
+00E62B  2  4F            	.byte	mne_tsxx		; $BA  TSX
+00E62C  2  51            	.byte	mne_tyxx		; $BB  TYX
+00E62D  2  53            	.byte	mne_ldyx		; $BC  LDY abs,X
+00E62E  2  01            	.byte	mne_ldax		; $BD  LDA abs,X
+00E62F  2  49            	.byte	mne_ldxx		; $BE  LDX abs,Y
+00E630  2  01            	.byte	mne_ldax		; $BF  LDA absl,X
+00E631  2               ;
+00E631  2  58            	.byte	mne_cpyx		; $C0  CPY #
+00E632  2  35            	.byte	mne_cmpx		; $C1  CMP (dp,X)
+00E633  2  31            	.byte	mne_repx		; $C2  REP #
+00E634  2  35            	.byte	mne_cmpx		; $C3  CMP <offset>,S
+00E635  2  58            	.byte	mne_cpyx		; $C4  CPY dp
+00E636  2  35            	.byte	mne_cmpx		; $C5  CMP dp
+00E637  2  12            	.byte	mne_decx		; $C6  DEC dp
+00E638  2  35            	.byte	mne_cmpx		; $C7  CMP [dp]
+00E639  2  57            	.byte	mne_inyx		; $C8  INY
+00E63A  2  35            	.byte	mne_cmpx		; $C9  CMP #
+00E63B  2  4A            	.byte	mne_dexx		; $CA  DEX
+00E63C  2  20            	.byte	mne_waix		; $CB  WAI
+00E63D  2  58            	.byte	mne_cpyx		; $CC  CPY abs
+00E63E  2  35            	.byte	mne_cmpx		; $CD  CMP abs
+00E63F  2  12            	.byte	mne_decx		; $CE  DEC abs
+00E640  2  35            	.byte	mne_cmpx		; $CF  CMP absl
+00E641  2               ;
+00E641  2  1F            	.byte	mne_bnex		; $D0  BNE abs
+00E642  2  35            	.byte	mne_cmpx		; $D1  CMP (<dp>),Y
+00E643  2  35            	.byte	mne_cmpx		; $D2  CMP (dp)
+00E644  2  35            	.byte	mne_cmpx		; $D3  CMP (<offset>,S),Y
+00E645  2  21            	.byte	mne_peix		; $D4  PEI dp
+00E646  2  35            	.byte	mne_cmpx		; $D5  CMP dp,X
+00E647  2  12            	.byte	mne_decx		; $D6  DEC dp,X
+00E648  2  35            	.byte	mne_cmpx		; $D7  CMP [dp],Y
+00E649  2  1B            	.byte	mne_cldx		; $D8  CLD
+00E64A  2  35            	.byte	mne_cmpx		; $D9  CMP abs,Y
+00E64B  2  4B            	.byte	mne_phxx		; $DA  PHX
+00E64C  2  39            	.byte	mne_stpx		; $DB  STP
+00E64D  2  36            	.byte	mne_jmpx		; $DC  JMP [abs]
+00E64E  2  35            	.byte	mne_cmpx		; $DD  CMP abs,X
+00E64F  2  12            	.byte	mne_decx		; $DE  DEC abs,X
+00E650  2  35            	.byte	mne_cmpx		; $DF  CMP absl,X
+00E651  2               ;
+00E651  2  4E            	.byte	mne_cpxx		; $E0  CPX #
+00E652  2  0E            	.byte	mne_sbcx		; $E1  SBC (dp,X)
+00E653  2  32            	.byte	mne_sepx		; $E2  SEP #
+00E654  2  0E            	.byte	mne_sbcx		; $E3  SBC <offset>,S
+00E655  2  4E            	.byte	mne_cpxx		; $E4  CPX dp
+00E656  2  0E            	.byte	mne_sbcx		; $E5  SBC dp
+00E657  2  15            	.byte	mne_incx		; $E6  INC dp
+00E658  2  0E            	.byte	mne_sbcx		; $E7  SBC [dp]
+00E659  2  4D            	.byte	mne_inxx		; $E8  INX
+00E65A  2  0E            	.byte	mne_sbcx		; $E9  SBC #
+00E65B  2  38            	.byte	mne_nopx		; $EA  NOP
+00E65C  2  00            	.byte	mne_xbax		; $EB  XBA
+00E65D  2  4E            	.byte	mne_cpxx		; $EC  CPX abs
+00E65E  2  0E            	.byte	mne_sbcx		; $ED  SBC abs
+00E65F  2  15            	.byte	mne_incx		; $EE  INC abs
+00E660  2  0E            	.byte	mne_sbcx		; $EF  SBC absl
+00E661  2               ;
+00E661  2  3B            	.byte	mne_beqx		; $F0  BEQ abs
+00E662  2  0E            	.byte	mne_sbcx		; $F1  SBC (<dp>),Y
+00E663  2  0E            	.byte	mne_sbcx		; $F2  SBC (dp)
+00E664  2  0E            	.byte	mne_sbcx		; $F3  SBC (<offset>,S),Y
+00E665  2  02            	.byte	mne_peax		; $F4  PEA #
+00E666  2  0E            	.byte	mne_sbcx		; $F5  SBC dp,X
+00E667  2  15            	.byte	mne_incx		; $F6  INC dp,X
+00E668  2  0E            	.byte	mne_sbcx		; $F7  SBC [dp],Y
+00E669  2  19            	.byte	mne_sedx		; $F8  SED
+00E66A  2  0E            	.byte	mne_sbcx		; $F9  SBC abs,Y
+00E66B  2  4C            	.byte	mne_plxx		; $FA  PLX
+00E66C  2  1E            	.byte	mne_xcex		; $FB  XCE
+00E66D  2  3F            	.byte	mne_jsrx		; $FC  JSR (abs,X)
+00E66E  2  0E            	.byte	mne_sbcx		; $FD  SBC abs,X
+00E66F  2  15            	.byte	mne_incx		; $FE  INC abs,X
+00E670  2  0E            	.byte	mne_sbcx		; $FF  SBC absl,X
+00E671  2               
+00E671  2               ;------------------------------------------------------------------------------
+00E671  2               ; Instruction Addressing Modes and Sizes in Opcode Order...
+00E671  2               ;
+00E671  2               ;	    xxxxxxxx
+00E671  2               ;	    ||||||||
+00E671  2               ;	    ||||++++---> Addressing Mode
+00E671  2               ;	    ||||         ----------------------------------
+00E671  2               ;	    ||||          0000  dp, abs, absl, implied or A
+00E671  2               ;	    ||||          0001  #
+00E671  2               ;	    ||||          0010  dp,X, abs,X or absl,X
+00E671  2               ;	    ||||          0011  dp,Y or abs,Y
+00E671  2               ;	    ||||          0100  (dp) or (abs)
+00E671  2               ;	    ||||          0101  [dp] or [abs]
+00E671  2               ;	    ||||          0110  [dp],Y
+00E671  2               ;	    ||||          0111  (dp,X) or (abs,X)
+00E671  2               ;	    ||||          1000  (<dp>),Y
+00E671  2               ;	    ||||          1001  <offset>,S
+00E671  2               ;	    ||||          1010  (<offset>,S),Y
+00E671  2               ;	    ||||          1011  sbnk,dbnk (MVN or MVP)
+00E671  2               ;	    ||||          ---------------------------------
+00E671  2               ;	    ||||           #    = immediate
+00E671  2               ;	    ||||           A    = accumulator
+00E671  2               ;	    ||||           abs  = absolute
+00E671  2               ;	    ||||           absl = absolute long
+00E671  2               ;	    ||||           dbnk = destination bank
+00E671  2               ;	    ||||           dp   = direct (zero) page
+00E671  2               ;	    ||||           S    = stack relative
+00E671  2               ;	    ||||           sbnk = source bank
+00E671  2               ;	    ||||         ----------------------------------
+00E671  2               ;	    ||||
+00E671  2               ;	    ||++-------> binary-encoded operand size
+00E671  2               ;	    |+---------> 1: relative branch instruction
+00E671  2               ;	    +----------> 1: variable operand size...
+00E671  2               ;
+00E671  2               ;	    Variable operand size refers to an immediate mode instruction
+00E671  2               ;	    that can accept either an 8 or 16 bit operand.  During instr-
+00E671  2               ;	    uction assembly, an 8 bit operand can be forced to 16 bits by
+00E671  2               ;	    preceding the operand field with !,  e.g.,  LDA !#$01,  which
+00E671  2               ;	    will assemble as $A9 $01 $00.
+00E671  2               ;------------------------------------------------------------------------------
+00E671  2               mnetabam:
+00E671  2  00           	.byte	ops0|am_nam 		; $00  BRK
+00E672  2  17           	.byte	ops1|am_indx		; $01  ORA (dp,X)
+00E673  2  10           	.byte	ops1|am_nam 		; $02  COP
+00E674  2  19           	.byte	ops1|am_stk 		; $03  ORA <offset>,S
+00E675  2  10           	.byte	ops1|am_nam 		; $04  TSB dp
+00E676  2  10           	.byte	ops1|am_nam 		; $05  ORA dp
+00E677  2  10           	.byte	ops1|am_nam 		; $06  ASL dp
+00E678  2  15           	.byte	ops1|am_indl		; $07  ORA [dp]
+00E679  2  00           	.byte	ops0|am_nam 		; $08  PHP
+00E67A  2  91           	.byte	vops|am_imm 		; $09  ORA #
+00E67B  2  00           	.byte	ops0|am_nam 		; $0A  ASL A
+00E67C  2  00           	.byte	ops0|am_nam 		; $0B  PHD
+00E67D  2  20           	.byte	ops2|am_nam 		; $0C  TSB abs
+00E67E  2  20           	.byte	ops2|am_nam 		; $0D  ORA abs
+00E67F  2  20           	.byte	ops2|am_nam 		; $0E  ASL abs
+00E680  2  30           	.byte	ops3|am_nam 		; $0F  ORA absl
+00E681  2               ;
+00E681  2  50           	.byte	bop1|am_nam 		; $10  BPL abs
+00E682  2  18           	.byte	ops1|am_indy		; $11  ORA (<dp>),Y
+00E683  2  14           	.byte	ops1|am_ind 		; $12  ORA (dp)
+00E684  2  1A           	.byte	ops1|am_stky		; $13  ORA (<offset>,S),Y
+00E685  2  10           	.byte	ops1|am_nam 		; $14  TRB dp
+00E686  2  12           	.byte	ops1|am_adrx		; $15  ORA dp,X
+00E687  2  12           	.byte	ops1|am_adrx		; $16  ASL dp,X
+00E688  2  16           	.byte	ops1|am_indly 		; $17  ORA [dp],Y
+00E689  2  00           	.byte	ops0|am_nam 		; $18  CLC
+00E68A  2  20           	.byte	ops2|am_nam 		; $19  ORA abs
+00E68B  2  00           	.byte	ops0|am_nam 		; $1A  INC A
+00E68C  2  00           	.byte	ops0|am_nam 		; $1B  TCS
+00E68D  2  20           	.byte	ops2|am_nam 		; $1C  TRB abs
+00E68E  2  22           	.byte	ops2|am_adrx		; $1D  ORA abs,X
+00E68F  2  22           	.byte	ops2|am_adrx		; $1E  ASL abs,X
+00E690  2  32           	.byte	ops3|am_adrx		; $1F  ORA absl,X
+00E691  2               ;
+00E691  2  20           	.byte	ops2|am_nam 		; $20  JSR abs
+00E692  2  17           	.byte	ops1|am_indx		; $21  AND (dp,X)
+00E693  2  30           	.byte	ops3|am_nam 		; $22  JSL absl
+00E694  2  19           	.byte	ops1|am_stk 		; $23  AND <offset>,S
+00E695  2  10           	.byte	ops1|am_nam 		; $24  BIT dp
+00E696  2  10           	.byte	ops1|am_nam 		; $25  AND dp
+00E697  2  10           	.byte	ops1|am_nam 		; $26  ROL dp
+00E698  2  15           	.byte	ops1|am_indl		; $27  AND [dp]
+00E699  2  00           	.byte	ops0|am_nam 		; $28  PLP
+00E69A  2  91           	.byte	vops|am_imm 		; $29  AND #
+00E69B  2  00           	.byte	ops0|am_nam 		; $2A  ROL A
+00E69C  2  00           	.byte	ops0|am_nam 		; $2B  PLD
+00E69D  2  20           	.byte	ops2|am_nam 		; $2C  BIT abs
+00E69E  2  20           	.byte	ops2|am_nam 		; $2D  AND abs
+00E69F  2  20           	.byte	ops2|am_nam 		; $2E  ROL abs
+00E6A0  2  30           	.byte	ops3|am_nam 		; $2F  AND absl
+00E6A1  2               ;
+00E6A1  2  50           	.byte	bop1|am_nam 		; $30  BMI abs
+00E6A2  2  18           	.byte	ops1|am_indy		; $31  AND (<dp>),Y
+00E6A3  2  14           	.byte	ops1|am_ind 		; $32  AND (dp)
+00E6A4  2  1A           	.byte	ops1|am_stky		; $33  AND (<offset>,S),Y
+00E6A5  2  12           	.byte	ops1|am_adrx		; $34  BIT dp,X
+00E6A6  2  12           	.byte	ops1|am_adrx		; $35  AND dp,X
+00E6A7  2  12           	.byte	ops1|am_adrx		; $36  ROL dp,X
+00E6A8  2  16           	.byte	ops1|am_indly 		; $37  AND [dp],Y
+00E6A9  2  00           	.byte	ops0|am_nam 		; $38  SEC
+00E6AA  2  23           	.byte	ops2|am_adry		; $39  AND abs,Y
+00E6AB  2  00           	.byte	ops0|am_nam 		; $3A  DEC A
+00E6AC  2  00           	.byte	ops0|am_nam 		; $3B  TSC
+00E6AD  2  22           	.byte	ops2|am_adrx		; $3C  BIT abs,X
+00E6AE  2  22           	.byte	ops2|am_adrx		; $3D  AND abs,X
+00E6AF  2  22           	.byte	ops2|am_adrx		; $3E  ROL abs,X
+00E6B0  2  32           	.byte	ops3|am_adrx		; $3F  AND absl,X
+00E6B1  2               ;
+00E6B1  2  00           	.byte	ops0|am_nam 		; $40  RTI
+00E6B2  2  17           	.byte	ops1|am_indx		; $41  EOR (dp,X)
+00E6B3  2  00           	.byte	ops0|am_nam 		; $42  WDM
+00E6B4  2  19           	.byte	ops1|am_stk 		; $43  EOR <offset>,S
+00E6B5  2  2B           	.byte	ops2|am_move		; $44  MVP sb,db
+00E6B6  2  10           	.byte	ops1|am_nam 		; $45  EOR dp
+00E6B7  2  10           	.byte	ops1|am_nam 		; $46  LSR dp
+00E6B8  2  15           	.byte	ops1|am_indl		; $47  EOR [dp]
+00E6B9  2  00           	.byte	ops0|am_nam 		; $48  PHA
+00E6BA  2  91           	.byte	vops|am_imm 		; $49  EOR #
+00E6BB  2  00           	.byte	ops0|am_nam 		; $4A  LSR A
+00E6BC  2  00           	.byte	ops0|am_nam 		; $4B  PHK
+00E6BD  2  20           	.byte	ops2|am_nam 		; $4C  JMP abs
+00E6BE  2  20           	.byte	ops2|am_nam 		; $4D  EOR abs
+00E6BF  2  20           	.byte	ops2|am_nam 		; $4E  LSR abs
+00E6C0  2  30           	.byte	ops3|am_nam 		; $4F  EOR absl
+00E6C1  2               ;
+00E6C1  2  50           	.byte	bop1|am_nam 		; $50  BVC abs
+00E6C2  2  18           	.byte	ops1|am_indy		; $51  EOR (<dp>),Y
+00E6C3  2  14           	.byte	ops1|am_ind 		; $52  EOR (dp)
+00E6C4  2  1A           	.byte	ops1|am_stky		; $53  EOR (<offset>,S),Y
+00E6C5  2  2B           	.byte	ops2|am_move		; $54  MVN sb,db
+00E6C6  2  12           	.byte	ops1|am_adrx		; $55  EOR dp,X
+00E6C7  2  12           	.byte	ops1|am_adrx		; $56  LSR dp,X
+00E6C8  2  16           	.byte	ops1|am_indly 		; $57  EOR [dp],Y
+00E6C9  2  00           	.byte	ops0|am_nam 		; $58  CLI
+00E6CA  2  23           	.byte	ops2|am_adry		; $59  EOR abs,Y
+00E6CB  2  00           	.byte	ops0|am_nam 		; $5A  PHY
+00E6CC  2  00           	.byte	ops0|am_nam 		; $5B  TCD
+00E6CD  2  30           	.byte	ops3|am_nam 		; $5C  JML absl
+00E6CE  2  22           	.byte	ops2|am_adrx		; $5D  EOR abs,X
+00E6CF  2  22           	.byte	ops2|am_adrx		; $5E  LSR abs,X
+00E6D0  2  32           	.byte	ops3|am_adrx		; $5F  EOR absl,X
+00E6D1  2               ;
+00E6D1  2  00           	.byte	ops0|am_nam 		; $60  RTS
+00E6D2  2  17           	.byte	ops1|am_indx		; $61  ADC (dp,X)
+00E6D3  2  60           	.byte	bop2|am_nam 		; $62  PER
+00E6D4  2  19           	.byte	ops1|am_stk 		; $63  ADC <offset>,S
+00E6D5  2  10           	.byte	ops1|am_nam 		; $64  STZ dp
+00E6D6  2  10           	.byte	ops1|am_nam 		; $65  ADC dp
+00E6D7  2  10           	.byte	ops1|am_nam 		; $66  ROR dp
+00E6D8  2  15           	.byte	ops1|am_indl		; $67  ADC [dp]
+00E6D9  2  00           	.byte	ops0|am_nam 		; $68  PLA
+00E6DA  2  91           	.byte	vops|am_imm 		; $69  ADC #
+00E6DB  2  00           	.byte	ops0|am_nam 		; $6A  ROR A
+00E6DC  2  00           	.byte	ops0|am_nam 		; $6B  RTL
+00E6DD  2  24           	.byte	ops2|am_ind 		; $6C  JMP (abs)
+00E6DE  2  20           	.byte	ops2|am_nam 		; $6D  ADC abs
+00E6DF  2  20           	.byte	ops2|am_nam 		; $6E  ROR abs
+00E6E0  2  30           	.byte	ops3|am_nam 		; $6F  ADC absl
+00E6E1  2               ;
+00E6E1  2  50           	.byte	bop1|am_nam 		; $70  BVS abs
+00E6E2  2  18           	.byte	ops1|am_indy		; $71  ADC (<dp>),Y
+00E6E3  2  14           	.byte	ops1|am_ind 		; $72  ADC (dp)
+00E6E4  2  1A           	.byte	ops1|am_stky		; $73  ADC (<offset>,S),Y
+00E6E5  2  12           	.byte	ops1|am_adrx		; $74  STZ dp,X
+00E6E6  2  12           	.byte	ops1|am_adrx		; $75  ADC dp,X
+00E6E7  2  12           	.byte	ops1|am_adrx		; $76  ROR dp,X
+00E6E8  2  16           	.byte	ops1|am_indly 		; $77  ADC [dp],Y
+00E6E9  2  00           	.byte	ops0|am_nam 		; $78  SEI
+00E6EA  2  23           	.byte	ops2|am_adry		; $79  ADC abs,Y
+00E6EB  2  00           	.byte	ops0|am_nam 		; $7A  PLY
+00E6EC  2  00           	.byte	ops0|am_nam 		; $7B  TDC
+00E6ED  2  27           	.byte	ops2|am_indx		; $7C  JMP (abs,X)
+00E6EE  2  22           	.byte	ops2|am_adrx		; $7D  ADC abs,X
+00E6EF  2  22           	.byte	ops2|am_adrx		; $7E  ROR abs,X
+00E6F0  2  32           	.byte	ops3|am_adrx		; $7F  ADC absl,X
+00E6F1  2               ;
+00E6F1  2  50           	.byte	bop1|am_nam 		; $80  BRA abs
+00E6F2  2  17           	.byte	ops1|am_indx		; $81  STA (dp,X)
+00E6F3  2  60           	.byte	bop2|am_nam 		; $82  BRL abs
+00E6F4  2  19           	.byte	ops1|am_stk 		; $83  STA <offset>,S
+00E6F5  2  10           	.byte	ops1|am_nam 		; $84  STY dp
+00E6F6  2  10           	.byte	ops1|am_nam 		; $85  STA dp
+00E6F7  2  10           	.byte	ops1|am_nam 		; $86  STX dp
+00E6F8  2  15           	.byte	ops1|am_indl		; $87  STA [dp]
+00E6F9  2  00           	.byte	ops0|am_nam 		; $88  DEY
+00E6FA  2  91           	.byte	vops|am_imm 		; $89  BIT #
+00E6FB  2  00           	.byte	ops0|am_nam 		; $8A  TXA
+00E6FC  2  00           	.byte	ops0|am_nam 		; $8B  PHB
+00E6FD  2  20           	.byte	ops2|am_nam 		; $8C  STY abs
+00E6FE  2  20           	.byte	ops2|am_nam 		; $8D  STA abs
+00E6FF  2  20           	.byte	ops2|am_nam 		; $8E  STX abs
+00E700  2  30           	.byte	ops3|am_nam 		; $8F  STA absl
+00E701  2               ;
+00E701  2  50           	.byte	bop1|am_nam 		; $90  BCC abs
+00E702  2  18           	.byte	ops1|am_indy		; $91  STA (<dp>),Y
+00E703  2  14           	.byte	ops1|am_ind 		; $92  STA (dp)
+00E704  2  1A           	.byte	ops1|am_stky		; $93  STA (<offset>,S),Y
+00E705  2  12           	.byte	ops1|am_adrx		; $94  STY dp,X
+00E706  2  12           	.byte	ops1|am_adrx		; $95  STA dp,X
+00E707  2  13           	.byte	ops1|am_adry		; $96  STX dp,Y
+00E708  2  16           	.byte	ops1|am_indly 		; $97  STA [dp],Y
+00E709  2  00           	.byte	ops0|am_nam 		; $98  TYA
+00E70A  2  23           	.byte	ops2|am_adry		; $99  STA abs,Y
+00E70B  2  00           	.byte	ops0|am_nam 		; $9A  TXS
+00E70C  2  00           	.byte	ops0|am_nam 		; $9B  TXY
+00E70D  2  20           	.byte	ops2|am_nam 		; $9C  STZ abs
+00E70E  2  22           	.byte	ops2|am_adrx		; $9D  STA abs,X
+00E70F  2  22           	.byte	ops2|am_adrx		; $9E  STZ abs,X
+00E710  2  32           	.byte	ops3|am_adrx		; $9F  STA absl,X
+00E711  2               ;
+00E711  2  91           	.byte	vops|am_imm 		; $A0  LDY #
+00E712  2  17           	.byte	ops1|am_indx		; $A1  LDA (dp,X)
+00E713  2  91           	.byte	vops|am_imm 		; $A2  LDX #
+00E714  2  19           	.byte	ops1|am_stk 		; $A3  LDA <offset>,S
+00E715  2  10           	.byte	ops1|am_nam 		; $A4  LDY dp
+00E716  2  10           	.byte	ops1|am_nam 		; $A5  LDA dp
+00E717  2  10           	.byte	ops1|am_nam 		; $A6  LDX dp
+00E718  2  15           	.byte	ops1|am_indl		; $A7  LDA [dp]
+00E719  2  00           	.byte	ops0|am_nam 		; $A8  TAY
+00E71A  2  91           	.byte	vops|am_imm 		; $A9  LDA #
+00E71B  2  00           	.byte	ops0|am_nam 		; $AA  TAX
+00E71C  2  00           	.byte	ops0|am_nam 		; $AB  PLB
+00E71D  2  20           	.byte	ops2|am_nam 		; $AC  LDY abs
+00E71E  2  20           	.byte	ops2|am_nam 		; $AD  LDA abs
+00E71F  2  20           	.byte	ops2|am_nam 		; $AE  LDX abs
+00E720  2  30           	.byte	ops3|am_nam 		; $AF  LDA absl
+00E721  2               ;
+00E721  2  50           	.byte	bop1|am_nam 		; $B0  BCS abs
+00E722  2  18           	.byte	ops1|am_indy		; $B1  LDA (<dp>),Y
+00E723  2  14           	.byte	ops1|am_ind 		; $B2  LDA (dp)
+00E724  2  1A           	.byte	ops1|am_stky		; $B3  LDA (<offset>,S),Y
+00E725  2  12           	.byte	ops1|am_adrx		; $B4  LDY dp,X
+00E726  2  12           	.byte	ops1|am_adrx		; $B5  LDA dp,X
+00E727  2  13           	.byte	ops1|am_adry		; $B6  LDX dp,Y
+00E728  2  16           	.byte	ops1|am_indly 		; $B7  LDA [dp],Y
+00E729  2  00           	.byte	ops0|am_nam 		; $B8  CLV
+00E72A  2  23           	.byte	ops2|am_adry		; $B9  LDA abs,Y
+00E72B  2  00           	.byte	ops0|am_nam 		; $BA  TSX
+00E72C  2  00           	.byte	ops0|am_nam 		; $BB  TYX
+00E72D  2  22           	.byte	ops2|am_adrx		; $BC  LDY abs,X
+00E72E  2  22           	.byte	ops2|am_adrx		; $BD  LDA abs,X
+00E72F  2  23           	.byte	ops2|am_adry		; $BE  LDX abs,Y
+00E730  2  32           	.byte	ops3|am_adrx		; $BF  LDA absl,X
+00E731  2               ;
+00E731  2  91           	.byte	vops|am_imm 		; $C0  CPY #
+00E732  2  17           	.byte	ops1|am_indx		; $C1  CMP (dp,X)
+00E733  2  11           	.byte	ops1|am_imm 		; $C2  REP #
+00E734  2  19           	.byte	ops1|am_stk 		; $C3  CMP <offset>,S
+00E735  2  10           	.byte	ops1|am_nam 		; $C4  CPY dp
+00E736  2  10           	.byte	ops1|am_nam 		; $C5  CMP dp
+00E737  2  10           	.byte	ops1|am_nam 		; $C6  DEC dp
+00E738  2  15           	.byte	ops1|am_indl		; $C7  CMP [dp]
+00E739  2  00           	.byte	ops0|am_nam 		; $C8  INY
+00E73A  2  91           	.byte	vops|am_imm 		; $C9  CMP #
+00E73B  2  00           	.byte	ops0|am_nam 		; $CA  DEX
+00E73C  2  00           	.byte	ops0|am_nam 		; $CB  WAI
+00E73D  2  20           	.byte	ops2|am_nam 		; $CC  CPY abs
+00E73E  2  20           	.byte	ops2|am_nam 		; $CD  CMP abs
+00E73F  2  20           	.byte	ops2|am_nam 		; $CE  DEC abs
+00E740  2  30           	.byte	ops3|am_nam 		; $CF  CMP absl
+00E741  2               ;
+00E741  2  50           	.byte	bop1|am_nam 		; $D0  BNE abs
+00E742  2  18           	.byte	ops1|am_indy		; $D1  CMP (<dp>),Y
+00E743  2  14           	.byte	ops1|am_ind 		; $D2  CMP (dp)
+00E744  2  1A           	.byte	ops1|am_stky		; $D3  CMP (<offset>,S),Y
+00E745  2  10           	.byte	ops1|am_nam 		; $D4  PEI dp
+00E746  2  12           	.byte	ops1|am_adrx		; $D5  CMP dp,X
+00E747  2  12           	.byte	ops1|am_adrx		; $D6  DEC dp,X
+00E748  2  16           	.byte	ops1|am_indly 		; $D7  CMP [dp],Y
+00E749  2  00           	.byte	ops0|am_nam 		; $D8  CLD
+00E74A  2  23           	.byte	ops2|am_adry		; $D9  CMP abs,Y
+00E74B  2  00           	.byte	ops0|am_nam 		; $DA  PHX
+00E74C  2  00           	.byte	ops0|am_nam 		; $DB  STP
+00E74D  2  25           	.byte	ops2|am_indl		; $DC  JMP [abs]
+00E74E  2  22           	.byte	ops2|am_adrx		; $DD  CMP abs,X
+00E74F  2  22           	.byte	ops2|am_adrx		; $DE  DEC abs,X
+00E750  2  32           	.byte	ops3|am_adrx		; $DF  CMP absl,X
+00E751  2               ;
+00E751  2  91           	.byte	vops|am_imm 		; $E0  CPX #
+00E752  2  17           	.byte	ops1|am_indx		; $E1  SBC (dp,X)
+00E753  2  11           	.byte	ops1|am_imm 		; $E2  SEP #
+00E754  2  19           	.byte	ops1|am_stk 		; $E3  SBC <offset>,S
+00E755  2  10           	.byte	ops1|am_nam 		; $E4  CPX dp
+00E756  2  10           	.byte	ops1|am_nam 		; $E5  SBC dp
+00E757  2  10           	.byte	ops1|am_nam 		; $E6  INC dp
+00E758  2  15           	.byte	ops1|am_indl		; $E7  SBC [dp]
+00E759  2  00           	.byte	ops0|am_nam 		; $E8  INX
+00E75A  2  91           	.byte	vops|am_imm 		; $E9  SBC #
+00E75B  2  00           	.byte	ops0|am_nam 		; $EA  NOP
+00E75C  2  00           	.byte	ops0|am_nam 		; $EB  XBA
+00E75D  2  20           	.byte	ops2|am_nam 		; $EC  CPX abs
+00E75E  2  20           	.byte	ops2|am_nam 		; $ED  SBC abs
+00E75F  2  20           	.byte	ops2|am_nam 		; $EE  INC abs
+00E760  2  30           	.byte	ops3|am_nam 		; $EF  SBC absl
+00E761  2               ;
+00E761  2  50           	.byte	bop1|am_nam 		; $F0  BEQ abs
+00E762  2  18           	.byte	ops1|am_indy		; $F1  SBC (<dp>),Y
+00E763  2  14           	.byte	ops1|am_ind 		; $F2  SBC (dp)
+00E764  2  1A           	.byte	ops1|am_stky		; $F3  SBC (<offset>,S),Y
+00E765  2  21           	.byte	ops2|am_imm 		; $F4  PEA #
+00E766  2  12           	.byte	ops1|am_adrx		; $F5  SBC dp,X
+00E767  2  12           	.byte	ops1|am_adrx		; $F6  INC dp,X
+00E768  2  16           	.byte	ops1|am_indly 		; $F7  SBC [dp],Y
+00E769  2  00           	.byte	ops0|am_nam 		; $F8  SED
+00E76A  2  23           	.byte	ops2|am_adry		; $F9  SBC abs,Y
+00E76B  2  00           	.byte	ops0|am_nam 		; $FA  PLX
+00E76C  2  00           	.byte	ops0|am_nam 		; $FB  XCE
+00E76D  2  27           	.byte	ops2|am_indx		; $FC  JSR (abs,X)
+00E76E  2  22           	.byte	ops2|am_adrx		; $FD  SBC abs,X
+00E76F  2  22           	.byte	ops2|am_adrx		; $FE  INC abs,X
+00E770  2  32           	.byte	ops3|am_adrx		; $FF  SBC absl,X
+00E771  2               
+00E771  2               ;------------------------------------------------------------------------------
+00E771  2               ; .X & .Y immediate mode opcodes...
+00E771  2               ;
+00E771  2               ;------------------------------------------------------------------------------
+00E771  2               vopidx:
+00E771  2  E0           	.byte	opc_cpxi        	; CPX #
+00E772  2  C0           	.byte	opc_cpyi        	; CPY #
+00E773  2  A2           	.byte	opc_ldxi        	; LDX #
+00E774  2  A0           	.byte	opc_ldyi        	; LDY #
+00E775  2               n_vopidx	= * - vopidx		; # of opcodes
+00E775  2               
+00E775  2               ;------------------------------------------------------------------------------
+00E775  2               ; Addressing Mode Symbology Lookup
+00E775  2               ;------------------------------------------------------------------------------
+00E775  2               ms_lutab:
+00E775  2  8D E7        	.word	ms_nam			; No symbol
+00E777  2  97 E7        	.word	ms_imm			; #
+00E779  2  8F E7        	.word	ms_addrx		; <addr>, X
+00E77B  2  93 E7        	.word	ms_addry		; <addr>, Y
+00E77D  2  99 E7        	.word	ms_ind			; (<addr>)
+00E77F  2  9C E7        	.word	ms_indl			; [<dp>]
+00E781  2  9F E7        	.word	ms_indly		; [<dp>], Y
+00E783  2  A4 E7        	.word	ms_indx			; (<addr>, X)
+00E785  2  A9 E7        	.word	ms_indy			; (<dp>), Y
+00E787  2  B1 E7        	.word	ms_stk			; <offset>, S
+00E789  2  B5 E7        	.word	ms_stky			; (<offset>, S), Y
+00E78B  2  8D E7        	.word	ms_nam			; <sbank>, <dbank>
+00E78D  2               
+00E78D  2               ;------------------------------------------------------------------------------
+00E78D  2               ; Addressing Mode Symbology String
+00E78D  2               ;------------------------------------------------------------------------------
+00E78D  2               ms_nam:
+00E78D  2  20 00        	.byte	' ',$00			; No symbol
+00E78F  2               ms_addrx:
+00E78F  2  20 2C 58 00  	.byte	" ,X", $00		; <addr>, X
+00E793  2               ms_addry:
+00E793  2  20 2C 59 00  	.byte	" ,Y", $00		; <addr>, Y
+00E797  2               ms_imm:
+00E797  2  23 00        	.byte	'#', $00		; #
+00E799  2               ms_ind:
+00E799  2  28 29 00     	.byte	"()", $00		; (<addr>)
+00E79C  2               ms_indl:
+00E79C  2  5B 5D 00     	.byte	"[]", $00		; [<dp>]
+00E79F  2               ms_indly:
+00E79F  2  5B 5D 2C 59  	.byte	"[],Y", $00		; [<dp>], Y
+00E7A3  2  00           
+00E7A4  2               ms_indx:
+00E7A4  2  28 2C 58 29  	.byte	"(,X)", $00		; (<addr>, X)
+00E7A8  2  00           
+00E7A9  2               ms_indy:
+00E7A9  2  28 29 2C 59  	.byte	"(),Y", $00		; (<dp>), Y
+00E7AD  2  00           
+00E7AE  2               ms_move:
+00E7AE  2  2C 24 00     	.byte	",$", $00		; <sbank>, <dbank>
+00E7B1  2               ms_stk:
+00E7B1  2  20 2C 53 00  	.byte	" ,S", $00		; <offset>, S
+00E7B5  2               ms_stky:
+00E7B5  2  28 2C 53 29  	.byte	"(,S),Y", $00		; (<offset>, S), Y
+00E7B9  2  2C 59 00     
 00E7BC  2               
-00E7BC  2               ;dc_cl:
-00E7BC  2               ;	.byte	CEOL			; Clear to End Of Line
+00E7BC  2               ;------------------------------------------------------------------------------
+00E7BC  2               ; Console Display Control Strings
+00E7BC  2               ;------------------------------------------------------------------------------
+00E7BC  2               ;dc_bf:
+00E7BC  2               ;	.byte	BF			; Enable reverse foreground
 00E7BC  2               ;	.byte	$00
 00E7BC  2               
-00E7BC  2               ;dc_cn:
-00E7BC  2               ;	.byte	CN			; Cursor On
-00E7BC  2               ;	.byte	$00
-00E7BC  2               
-00E7BC  2               ;dc_co:
-00E7BC  2               ;	.byte	CO			; Cursor Off
-00E7BC  2               ;	.byte	$00
-00E7BC  2               
-00E7BC  2               ;dc_er:
-00E7BC  2               ;	.byte	ER			; Enable normal foreground
-00E7BC  2               ;	.byte	$00
-00E7BC  2               
-00E7BC  2               dc_lf:
-00E7BC  2  0A           	.byte	LF			; Newline
-00E7BD  2  0D           	.byte	CR			; <CR>
-00E7BE  2  00           	.byte	$00
-00E7BF  2               
-00E7BF  2               ;------------------------------------------------------------------------------
-00E7BF  2               ; Text Strings
-00E7BF  2               ;------------------------------------------------------------------------------
-00E7BF  2               mm_brk:
-00E7BF  2  07           	.byte	BELL
-00E7C0  2  0D 0A        	.byte	CR, LF
-00E7C2  2  2A 42 52 4B  	.byte	"*BRK"
-00E7C6  2  00           	.byte 	$00
-00E7C7  2               
-00E7C7  2               mm_entry:
-00E7C7  2  0D 0A        	.byte	CR, LF
-00E7C9  2  53 75 70 65  	.byte	"Supermon 816 "
-00E7CD  2  72 6D 6F 6E  
-00E7D1  2  20 38 31 36  
-00E7D5  2  20           
-00E7D6  2  31 2E 30 2E  	softvers
-00E7DA  2  33           
-00E7DB  2  0D 0A 28 49  	.byte 	CR, LF, "(Implementation for Adria "
-00E7DF  2  6D 70 6C 65  
-00E7E3  2  6D 65 6E 74  
-00E7E7  2  61 74 69 6F  
-00E7EB  2  6E 20 66 6F  
-00E7EF  2  72 20 41 64  
-00E7F3  2  72 69 61 20  
-00E7F7  2  30 2E 31 2E  	bios_version
-00E7FB  2  33           
-00E7FC  2  29 0D 0A 00  	.byte 	")", CR, LF, $00
-00E800  2               
-00E800  2               mm_err:
-00E800  2  2A 45 52 52  	.byte	"*ERR ", $00
-00E804  2  20 00        
-00E806  2               
-00E806  2               mm_prmpt:
-00E806  2  0D 0A        	.byte 	CR, LF
-00E808  2  2E           	.byte	'.'
-00E809  2  00           	.byte	$00
-00E80A  2               
-00E80A  2               mm_regs:
-00E80A  2  0D 0A        	.byte	CR, LF
-00E80C  2  20 20 50 42  	.byte	"  PB  PC   NVmxDIZC  .C   .X   .Y   SP   DP  DB"
-00E810  2  20 20 50 43  
-00E814  2  20 20 20 4E  
-00E818  2  56 6D 78 44  
-00E81C  2  49 5A 43 20  
-00E820  2  20 2E 43 20  
-00E824  2  20 20 2E 58  
-00E828  2  20 20 20 2E  
-00E82C  2  59 20 20 20  
-00E830  2  53 50 20 20  
-00E834  2  20 44 50 20  
-00E838  2  20 44 42     
-00E83B  2  0D 0A        	.byte	CR, LF
-00E83D  2  3A 20        	.byte	':', ' '
-00E83F  2  00           	.byte	$00
-00E840  2               
-00E840  2               mm_rts:
-00E840  2  07           	.byte	BELL
-00E841  2  0D 0A        	.byte	CR, LF
-00E843  2  2A 52 54 53  	.byte	"*RTS"
-00E847  2  0D 0A        	.byte	CR, LF
-00E849  2  00           	.byte	$00
-00E84A  2               
-00E84A  2               
-00E84A  2               mm_hlp:
-00E84A  2  0D 0A        	.byte	CR, LF
-00E84C  2  53 75 70 65  	.byte	"Supermon 816 "
-00E850  2  72 6D 6F 6E  
-00E854  2  20 38 31 36  
-00E858  2  20           
-00E859  2  31 2E 30 2E  	softvers
-00E85D  2  33           
-00E85E  2  20 48 65 6C  	.byte	" Help",CR, LF
-00E862  2  70 0D 0A     
-00E865  2  0D 0A        	.byte	CR, LF
-00E867  2  41 20 2D 20  	.byte	"A - Assemble code", CR, LF
-00E86B  2  41 73 73 65  
-00E86F  2  6D 62 6C 65  
-00E873  2  20 63 6F 64  
-00E877  2  65 0D 0A     
-00E87A  2  43 20 2D 20  	.byte	"C - Compare memory ranges", CR, LF
-00E87E  2  43 6F 6D 70  
-00E882  2  61 72 65 20  
-00E886  2  6D 65 6D 6F  
-00E88A  2  72 79 20 72  
-00E88E  2  61 6E 67 65  
-00E892  2  73 0D 0A     
-00E895  2  44 20 2D 20  	.byte	"D - Disassemble code", CR, LF
-00E899  2  44 69 73 61  
-00E89D  2  73 73 65 6D  
-00E8A1  2  62 6C 65 20  
-00E8A5  2  63 6F 64 65  
-00E8A9  2  0D 0A        
-00E8AB  2  46 20 2D 20  	.byte	"F - Fill memory", CR, LF
-00E8AF  2  46 69 6C 6C  
-00E8B3  2  20 6D 65 6D  
-00E8B7  2  6F 72 79 0D  
-00E8BB  2  0A           
-00E8BC  2  47 20 2D 20  	.byte	"G - Execute code (JMP)", CR, LF
-00E8C0  2  45 78 65 63  
-00E8C4  2  75 74 65 20  
-00E8C8  2  63 6F 64 65  
-00E8CC  2  20 28 4A 4D  
-00E8D0  2  50 29 0D 0A  
-00E8D4  2  48 20 2D 20  	.byte	"H - Search memory", CR, LF
-00E8D8  2  53 65 61 72  
-00E8DC  2  63 68 20 6D  
-00E8E0  2  65 6D 6F 72  
-00E8E4  2  79 0D 0A     
-00E8E7  2  4A 20 2D 20  	.byte	"J - Execute code as subroutine (JSR)", CR, LF
-00E8EB  2  45 78 65 63  
-00E8EF  2  75 74 65 20  
-00E8F3  2  63 6F 64 65  
-00E8F7  2  20 61 73 20  
-00E8FB  2  73 75 62 72  
-00E8FF  2  6F 75 74 69  
-00E903  2  6E 65 20 28  
-00E907  2  4A 53 52 29  
-00E90B  2  0D 0A        
-00E90D  2  4C 20 2D 20  	.byte	"L - Load code (Intel Hex)", CR, LF
-00E911  2  4C 6F 61 64  
-00E915  2  20 63 6F 64  
-00E919  2  65 20 28 49  
-00E91D  2  6E 74 65 6C  
-00E921  2  20 48 65 78  
-00E925  2  29 0D 0A     
-00E928  2  4D 20 2D 20  	.byte	"M - Dump memory range", CR, LF
-00E92C  2  44 75 6D 70  
-00E930  2  20 6D 65 6D  
-00E934  2  6F 72 79 20  
-00E938  2  72 61 6E 67  
-00E93C  2  65 0D 0A     
-00E93F  2  52 20 2D 20  	.byte	"R - Dump registers", CR, LF
-00E943  2  44 75 6D 70  
-00E947  2  20 72 65 67  
-00E94B  2  69 73 74 65  
-00E94F  2  72 73 0D 0A  
-00E953  2  54 20 2D 20  	.byte	"T - Copy memory range", CR, LF
-00E957  2  43 6F 70 79  
-00E95B  2  20 6D 65 6D  
-00E95F  2  6F 72 79 20  
-00E963  2  72 61 6E 67  
-00E967  2  65 0D 0A     
-00E96A  2  3E 20 2D 20  	.byte	"> - Change memory", CR, LF
-00E96E  2  43 68 61 6E  
-00E972  2  67 65 20 6D  
-00E976  2  65 6D 6F 72  
-00E97A  2  79 0D 0A     
-00E97D  2  3B 20 2D 20  	.byte	"; - Change registers", CR, LF
-00E981  2  43 68 61 6E  
-00E985  2  67 65 20 72  
-00E989  2  65 67 69 73  
-00E98D  2  74 65 72 73  
-00E991  2  0D 0A        
-00E993  2  3F 20 2D 20  	.byte	"? - Help (this)", CR, LF
-00E997  2  48 65 6C 70  
-00E99B  2  20 28 74 68  
-00E99F  2  69 73 29 0D  
-00E9A3  2  0A           
-00E9A4  2  00           	.byte	$00
-00E9A5  2               
-00E9A5  2               ; Descriptive strings for monitor routines (used with LCD)?
-00E9A5  2               ;		 0123456789ABCDEF
-00E9A5  2               mm_monce:
-00E9A5  2  4D 6F 6E 69  	.asciiz	"Monitor"
-00E9A9  2  74 6F 72 00  
-00E9AD  2               mm_monerr:
-00E9AD  2  2A 2A 45 72  	.asciiz	"**Error"
-00E9B1  2  72 6F 72 00  
-00E9B5  2               mm_monasc:
-00E9B5  2  41 73 73 65  	.asciiz	"Assembler"
-00E9B9  2  6D 62 6C 65  
-00E9BD  2  72 00        
-00E9BF  2               mm_mondsc:
-00E9BF  2  44 69 73 61  	.asciiz	"Disassembler"
-00E9C3  2  73 73 65 6D  
-00E9C7  2  62 6C 65 72  
-00E9CB  2  00           
-00E9CC  2               mm_monjmp:
-00E9CC  2  4A 4D 50 20  	.asciiz	"JMP routine"
-00E9D0  2  72 6F 75 74  
-00E9D4  2  69 6E 65 00  
-00E9D8  2               mm_monjsr:
-00E9D8  2  4A 53 52 20  	.asciiz	"JSR routine"
-00E9DC  2  72 6F 75 74  
-00E9E0  2  69 6E 65 00  
-00E9E4  2               mm_monchm:
-00E9E4  2  43 68 61 6E  	.asciiz	"Change memory"
-00E9E8  2  67 65 20 6D  
-00E9EC  2  65 6D 6F 72  
-00E9F0  2  79 00        
-00E9F2  2               mm_moncmp:
-00E9F2  2  43 6F 6D 70  	.asciiz "Compare momory"
-00E9F6  2  61 72 65 20  
-00E9FA  2  6D 6F 6D 6F  
-00E9FE  2  72 79 00     
-00EA01  2               mm_moncpy:
-00EA01  2  43 6F 70 79  	.asciiz	"Copy memory"
-00EA05  2  20 6D 65 6D  
-00EA09  2  6F 72 79 00  
-00EA0D  2               mm_mondmp:
-00EA0D  2  44 75 6D 70  	.asciiz	"Dump memory"
-00EA11  2  20 6D 65 6D  
-00EA15  2  6F 72 79 00  
-00EA19  2               mm_monfil:
-00EA19  2  46 69 6C 6C  	.asciiz	"Fill memory"
-00EA1D  2  20 6D 65 6D  
-00EA21  2  6F 72 79 00  
-00EA25  2               mm_monhnt:
-00EA25  2  48 75 6E 74  	.asciiz	"Hunt memory"
-00EA29  2  20 6D 65 6D  
-00EA2D  2  6F 72 79 00  
-00EA31  2               
-00EA31  2               ;---------------------------------------
-00EA31  2               ; Temporary used to determine zeropage (DP) usage
-00EA31  2               ; Comment when not needed
-00EA31  2               ;---------------------------------------
-00EA31  2               ZPUsage:
-00EA31  2               ; hexintel
-00EA31  2  70           	.byte	DPL
-00EA32  2  71           	.byte	DPH
-00EA33  2  72           	.byte	RECLEN
-00EA34  2  73           	.byte	START_LO
-00EA35  2  74           	.byte	START_HI
-00EA36  2  75           	.byte	RECTYPE
-00EA37  2  76           	.byte	RECCHKSUM
-00EA38  2  77           	.byte	DLFAIL
-00EA39  2  78           	.byte	TEMP
-00EA3A  2               ; Monitor
-00EA3A  2  80           	.byte	reg_pbx
-00EA3B  2  81           	.byte	reg_pcx
-00EA3C  2  83           	.byte	reg_srx
-00EA3D  2  84           	.byte	reg_ax
-00EA3E  2  86           	.byte	reg_xx
-00EA3F  2  88           	.byte	reg_yx
-00EA40  2  8A           	.byte	reg_spx
-00EA41  2  8C           	.byte	reg_dpx
-00EA42  2  8E           	.byte	reg_dbx
-00EA43  2  8F           	.byte	addra
-00EA44  2  92           	.byte	addrb
-00EA45  2  95           	.byte	faca
-00EA46  2  99           	.byte	facax
-00EA47  2  9D           	.byte	facb
-00EA48  2  A3           	.byte	facc
-00EA49  2  A9           	.byte	operand
-00EA4A  2  AC           	.byte	auxbufindex
-00EA4B  2  AD           	.byte	ibufidx
-00EA4C  2  AE           	.byte	bitsdig
-00EA4D  2  AF           	.byte	numeral
-00EA4E  2  B0           	.byte	radix
-00EA4F  2  B1           	.byte	admodidx
-00EA50  2  B2           	.byte	charcnt
-00EA51  2  B4           	.byte	instsize
-00EA52  2  B6           	.byte	mnepck
-00EA53  2  B8           	.byte	opcode
-00EA54  2  B9           	.byte	status
-00EA55  2  BA           	.byte	xrtemp
-00EA56  2  BB           	.byte	eopsize
-00EA57  2  BC           	.byte	flimflag
-00EA58  2  BD           	.byte	vecbrkia
-00EA59  2  BF           	.byte	iopsize
-00EA5A  2  C0           	.byte	range
-00EA5B  2  C1           	.byte	vopsflag
-00EA5C  2  95           	.byte	mcftwork
-00EA5D  2  96           	.byte	mcftopc
-00EA5E  2  97           	.byte	mcftbnk
-00EA5F  2  00 02        	.word	ibuffer
-00EA61  2  46 02        	.word	auxbuf
-00EA63  2               ; (g)LCD specific
-00EA63  2               ;	.word	dpy_data_buf
-00EA63  2               ;	.byte	dpy_data_size
-00EA63  2               ;	.word	dpy_data_max
-00EA63  2               ;
-00EA63  2               ; System wide vectors
-00EA63  2  DC 02        	.word	VECTOR_BRK
-00EA65  2  D4 02        	.word	VECTOR_NMI
-00EA67  2  D8 02        	.word	VECTOR_INT
-00EA69  2  D0 02        	.word	VECTOR_RES
-00EA6B  2  E2 02        	.word	VECTOR_CHAR_IN
-00EA6D  2  E4 02        	.word	VECTOR_CHAR_SCAN
-00EA6F  2  E0 02        	.word	VECTOR_CHAR_OUT
-00EA71  2               ;---------------------------------------
-00EA71  2               ; Used to calculate memory footprint of module
-00EA71  2               ;---------------------------------------
-00EA71  2               _mon_end = *
-00EA71  2               _mon_size = _mon_end - SYSMONITOR
-00EA71  2               	.out .concat("Supermon816                       $", .sprintf("%04x", SYSMONITOR), "      $", .sprintf("%04x", _mon_end), "    $", .sprintf("%04x", _mon_size), "  (", .sprintf("%05d", _mon_size), ")")
-00EA71  2               ;	.out .concat("-- Size of Monitor:	            $", .sprintf("%04x", _mon_size), " (", .sprintf("%05d", _mon_size), ")")
-00EA71  2               
-00EA71  2               
-00EA71  1               
-00EA71  1               ; Interrupt Service Routines
-00EA71  1               _incl_isr:
-00EA71  1  00 00 00 00  	.res		ISR - *, $00
-00EA75  1  00 00 00 00  
-00EA79  1  00 00 00 00  
-00EA7D  1  00 00 00 00  
-00EA81  1  00 00 00 00  
-00EA85  1  00 00 00 00  
-00EA89  1  00 00 00 00  
-00EA8D  1  00 00 00 00  
-00EA91  1  00 00 00 00  
-00EA95  1  00 00 00 00  
-00EA99  1  00 00 00 00  
-00EA9D  1  00 00 00 00  
-00EAA1  1  00 00 00 00  
-00EAA5  1  00 00 00 00  
-00EAA9  1  00 00 00 00  
-00EAAD  1  00 00 00 00  
-00EAB1  1  00 00 00 00  
-00EAB5  1  00 00 00 00  
-00EAB9  1  00 00 00 00  
-00EABD  1  00 00 00 00  
-00EAC1  1  00 00 00 00  
-00EAC5  1  00 00 00 00  
-00EAC9  1  00 00 00 00  
-00EACD  1  00 00 00 00  
-00EAD1  1  00 00 00 00  
-00EAD5  1  00 00 00 00  
-00EAD9  1  00 00 00 00  
-00EADD  1  00 00 00 00  
-00EAE1  1  00 00 00 00  
-00EAE5  1  00 00 00 00  
-00EAE9  1  00 00 00 00  
-00EAED  1  00 00 00 00  
-00EAF1  1  00 00 00 00  
-00EAF5  1  00 00 00 00  
-00EAF9  1  00 00 00 00  
-00EAFD  1  00 00 00 00  
-00EB01  1  00 00 00 00  
-00EB05  1  00 00 00 00  
-00EB09  1  00 00 00 00  
-00EB0D  1  00 00 00 00  
-00EB11  1  00 00 00 00  
-00EB15  1  00 00 00 00  
-00EB19  1  00 00 00 00  
-00EB1D  1  00 00 00 00  
-00EB21  1  00 00 00 00  
-00EB25  1  00 00 00 00  
-00EB29  1  00 00 00 00  
-00EB2D  1  00 00 00 00  
-00EB31  1  00 00 00 00  
-00EB35  1  00 00 00 00  
-00EB39  1  00 00 00 00  
-00EB3D  1  00 00 00 00  
-00EB41  1  00 00 00 00  
-00EB45  1  00 00 00 00  
-00EB49  1  00 00 00 00  
-00EB4D  1  00 00 00 00  
-00EB51  1  00 00 00 00  
-00EB55  1  00 00 00 00  
-00EB59  1  00 00 00 00  
-00EB5D  1  00 00 00 00  
-00EB61  1  00 00 00 00  
-00EB65  1  00 00 00 00  
-00EB69  1  00 00 00 00  
-00EB6D  1  00 00 00     
+00E7BC  2               dc_bs:
+00E7BC  2  08           	.byte	BS			; Destructive backspace
+00E7BD  2  00           	.byte	$00
+00E7BE  2               
+00E7BE  2               ;dc_cl:
+00E7BE  2               ;	.byte	CEOL			; Clear to End Of Line
+00E7BE  2               ;	.byte	$00
+00E7BE  2               
+00E7BE  2               ;dc_cn:
+00E7BE  2               ;	.byte	CN			; Cursor On
+00E7BE  2               ;	.byte	$00
+00E7BE  2               
+00E7BE  2               ;dc_co:
+00E7BE  2               ;	.byte	CO			; Cursor Off
+00E7BE  2               ;	.byte	$00
+00E7BE  2               
+00E7BE  2               ;dc_er:
+00E7BE  2               ;	.byte	ER			; Enable normal foreground
+00E7BE  2               ;	.byte	$00
+00E7BE  2               
+00E7BE  2               dc_lf:
+00E7BE  2  0A           	.byte	LF			; Newline
+00E7BF  2  0D           	.byte	CR			; <CR>
+00E7C0  2  00           	.byte	$00
+00E7C1  2               
+00E7C1  2               ;------------------------------------------------------------------------------
+00E7C1  2               ; Text Strings
+00E7C1  2               ;------------------------------------------------------------------------------
+00E7C1  2               mm_brk:
+00E7C1  2  07           	.byte	BELL
+00E7C2  2  0D 0A        	.byte	CR, LF
+00E7C4  2  2A 42 52 4B  	.byte	"*BRK"
+00E7C8  2  00           	.byte 	$00
+00E7C9  2               
+00E7C9  2               mm_entry:
+00E7C9  2  0D 0A        	.byte	CR, LF
+00E7CB  2  53 75 70 65  	.byte	"Supermon 816 "
+00E7CF  2  72 6D 6F 6E  
+00E7D3  2  20 38 31 36  
+00E7D7  2  20           
+00E7D8  2  31 2E 30 2E  	softvers
+00E7DC  2  34           
+00E7DD  2  0D 0A 28 49  	.byte 	CR, LF, "(Implementation for Adria "
+00E7E1  2  6D 70 6C 65  
+00E7E5  2  6D 65 6E 74  
+00E7E9  2  61 74 69 6F  
+00E7ED  2  6E 20 66 6F  
+00E7F1  2  72 20 41 64  
+00E7F5  2  72 69 61 20  
+00E7F9  2  30 2E 31 2E  	bios_version
+00E7FD  2  33           
+00E7FE  2  29 0D 0A 00  	.byte 	")", CR, LF, $00
+00E802  2               
+00E802  2               mm_err:
+00E802  2  2A 45 52 52  	.byte	"*ERR ", $00
+00E806  2  20 00        
+00E808  2               
+00E808  2               mm_prmpt:
+00E808  2  0D 0A        	.byte 	CR, LF
+00E80A  2  2E           	.byte	'.'
+00E80B  2  00           	.byte	$00
+00E80C  2               
+00E80C  2               mm_regs:
+00E80C  2  0D 0A        	.byte	CR, LF
+00E80E  2  20 20 50 42  	.byte	"  PB  PC   NVmxDIZC  .C   .X   .Y   SP   DP  DB"
+00E812  2  20 20 50 43  
+00E816  2  20 20 20 4E  
+00E81A  2  56 6D 78 44  
+00E81E  2  49 5A 43 20  
+00E822  2  20 2E 43 20  
+00E826  2  20 20 2E 58  
+00E82A  2  20 20 20 2E  
+00E82E  2  59 20 20 20  
+00E832  2  53 50 20 20  
+00E836  2  20 44 50 20  
+00E83A  2  20 44 42     
+00E83D  2  0D 0A        	.byte	CR, LF
+00E83F  2  3A 20        	.byte	':', ' '
+00E841  2  00           	.byte	$00
+00E842  2               
+00E842  2               mm_rts:
+00E842  2  07           	.byte	BELL
+00E843  2  0D 0A        	.byte	CR, LF
+00E845  2  2A 52 54 53  	.byte	"*RTS"
+00E849  2  0D 0A        	.byte	CR, LF
+00E84B  2  00           	.byte	$00
+00E84C  2               
+00E84C  2               
+00E84C  2               mm_hlp:
+00E84C  2  0D 0A        	.byte	CR, LF
+00E84E  2  53 75 70 65  	.byte	"Supermon 816 "
+00E852  2  72 6D 6F 6E  
+00E856  2  20 38 31 36  
+00E85A  2  20           
+00E85B  2  31 2E 30 2E  	softvers
+00E85F  2  34           
+00E860  2  20 48 65 6C  	.byte	" Help",CR, LF
+00E864  2  70 0D 0A     
+00E867  2  0D 0A        	.byte	CR, LF
+00E869  2  41 20 2D 20  	.byte	"A - Assemble code", CR, LF
+00E86D  2  41 73 73 65  
+00E871  2  6D 62 6C 65  
+00E875  2  20 63 6F 64  
+00E879  2  65 0D 0A     
+00E87C  2  43 20 2D 20  	.byte	"C - Compare memory ranges", CR, LF
+00E880  2  43 6F 6D 70  
+00E884  2  61 72 65 20  
+00E888  2  6D 65 6D 6F  
+00E88C  2  72 79 20 72  
+00E890  2  61 6E 67 65  
+00E894  2  73 0D 0A     
+00E897  2  44 20 2D 20  	.byte	"D - Disassemble code", CR, LF
+00E89B  2  44 69 73 61  
+00E89F  2  73 73 65 6D  
+00E8A3  2  62 6C 65 20  
+00E8A7  2  63 6F 64 65  
+00E8AB  2  0D 0A        
+00E8AD  2  46 20 2D 20  	.byte	"F - Fill memory", CR, LF
+00E8B1  2  46 69 6C 6C  
+00E8B5  2  20 6D 65 6D  
+00E8B9  2  6F 72 79 0D  
+00E8BD  2  0A           
+00E8BE  2  47 20 2D 20  	.byte	"G - Execute code (JMP)", CR, LF
+00E8C2  2  45 78 65 63  
+00E8C6  2  75 74 65 20  
+00E8CA  2  63 6F 64 65  
+00E8CE  2  20 28 4A 4D  
+00E8D2  2  50 29 0D 0A  
+00E8D6  2  48 20 2D 20  	.byte	"H - Search memory", CR, LF
+00E8DA  2  53 65 61 72  
+00E8DE  2  63 68 20 6D  
+00E8E2  2  65 6D 6F 72  
+00E8E6  2  79 0D 0A     
+00E8E9  2  4A 20 2D 20  	.byte	"J - Execute code as subroutine (JSR)", CR, LF
+00E8ED  2  45 78 65 63  
+00E8F1  2  75 74 65 20  
+00E8F5  2  63 6F 64 65  
+00E8F9  2  20 61 73 20  
+00E8FD  2  73 75 62 72  
+00E901  2  6F 75 74 69  
+00E905  2  6E 65 20 28  
+00E909  2  4A 53 52 29  
+00E90D  2  0D 0A        
+00E90F  2  4C 20 2D 20  	.byte	"L - Load code (Intel Hex)", CR, LF
+00E913  2  4C 6F 61 64  
+00E917  2  20 63 6F 64  
+00E91B  2  65 20 28 49  
+00E91F  2  6E 74 65 6C  
+00E923  2  20 48 65 78  
+00E927  2  29 0D 0A     
+00E92A  2  4D 20 2D 20  	.byte	"M - Dump memory range", CR, LF
+00E92E  2  44 75 6D 70  
+00E932  2  20 6D 65 6D  
+00E936  2  6F 72 79 20  
+00E93A  2  72 61 6E 67  
+00E93E  2  65 0D 0A     
+00E941  2  52 20 2D 20  	.byte	"R - Dump registers", CR, LF
+00E945  2  44 75 6D 70  
+00E949  2  20 72 65 67  
+00E94D  2  69 73 74 65  
+00E951  2  72 73 0D 0A  
+00E955  2  54 20 2D 20  	.byte	"T - Copy memory range", CR, LF
+00E959  2  43 6F 70 79  
+00E95D  2  20 6D 65 6D  
+00E961  2  6F 72 79 20  
+00E965  2  72 61 6E 67  
+00E969  2  65 0D 0A     
+00E96C  2  3E 20 2D 20  	.byte	"> - Change memory", CR, LF
+00E970  2  43 68 61 6E  
+00E974  2  67 65 20 6D  
+00E978  2  65 6D 6F 72  
+00E97C  2  79 0D 0A     
+00E97F  2  3B 20 2D 20  	.byte	"; - Change registers", CR, LF
+00E983  2  43 68 61 6E  
+00E987  2  67 65 20 72  
+00E98B  2  65 67 69 73  
+00E98F  2  74 65 72 73  
+00E993  2  0D 0A        
+00E995  2  3F 20 2D 20  	.byte	"? - Help (this)", CR, LF
+00E999  2  48 65 6C 70  
+00E99D  2  20 28 74 68  
+00E9A1  2  69 73 29 0D  
+00E9A5  2  0A           
+00E9A6  2  00           	.byte	$00
+00E9A7  2               
+00E9A7  2               ; Descriptive strings for monitor routines (used with LCD)?
+00E9A7  2               ;		 0123456789ABCDEF
+00E9A7  2               mm_monce:
+00E9A7  2  4D 6F 6E 69  	.asciiz	"Monitor"
+00E9AB  2  74 6F 72 00  
+00E9AF  2               mm_monerr:
+00E9AF  2  2A 2A 45 72  	.asciiz	"**Error"
+00E9B3  2  72 6F 72 00  
+00E9B7  2               mm_monasc:
+00E9B7  2  41 73 73 65  	.asciiz	"Assembler"
+00E9BB  2  6D 62 6C 65  
+00E9BF  2  72 00        
+00E9C1  2               mm_mondsc:
+00E9C1  2  44 69 73 61  	.asciiz	"Disassembler"
+00E9C5  2  73 73 65 6D  
+00E9C9  2  62 6C 65 72  
+00E9CD  2  00           
+00E9CE  2               mm_monjmp:
+00E9CE  2  4A 4D 50 20  	.asciiz	"JMP routine"
+00E9D2  2  72 6F 75 74  
+00E9D6  2  69 6E 65 00  
+00E9DA  2               mm_monjsr:
+00E9DA  2  4A 53 52 20  	.asciiz	"JSR routine"
+00E9DE  2  72 6F 75 74  
+00E9E2  2  69 6E 65 00  
+00E9E6  2               mm_monchm:
+00E9E6  2  43 68 61 6E  	.asciiz	"Change memory"
+00E9EA  2  67 65 20 6D  
+00E9EE  2  65 6D 6F 72  
+00E9F2  2  79 00        
+00E9F4  2               mm_moncmp:
+00E9F4  2  43 6F 6D 70  	.asciiz "Compare momory"
+00E9F8  2  61 72 65 20  
+00E9FC  2  6D 6F 6D 6F  
+00EA00  2  72 79 00     
+00EA03  2               mm_moncpy:
+00EA03  2  43 6F 70 79  	.asciiz	"Copy memory"
+00EA07  2  20 6D 65 6D  
+00EA0B  2  6F 72 79 00  
+00EA0F  2               mm_mondmp:
+00EA0F  2  44 75 6D 70  	.asciiz	"Dump memory"
+00EA13  2  20 6D 65 6D  
+00EA17  2  6F 72 79 00  
+00EA1B  2               mm_monfil:
+00EA1B  2  46 69 6C 6C  	.asciiz	"Fill memory"
+00EA1F  2  20 6D 65 6D  
+00EA23  2  6F 72 79 00  
+00EA27  2               mm_monhnt:
+00EA27  2  48 75 6E 74  	.asciiz	"Hunt memory"
+00EA2B  2  20 6D 65 6D  
+00EA2F  2  6F 72 79 00  
+00EA33  2               
+00EA33  2               ;---------------------------------------
+00EA33  2               ; Temporary used to determine zeropage (DP) usage
+00EA33  2               ; Comment when not needed
+00EA33  2               ;---------------------------------------
+00EA33  2               ZPUsage:
+00EA33  2               ; hexintel
+00EA33  2  70           	.byte	DPL
+00EA34  2  71           	.byte	DPH
+00EA35  2  72           	.byte	RECLEN
+00EA36  2  73           	.byte	START_LO
+00EA37  2  74           	.byte	START_HI
+00EA38  2  75           	.byte	RECTYPE
+00EA39  2  76           	.byte	RECCHKSUM
+00EA3A  2  77           	.byte	DLFAIL
+00EA3B  2  78           	.byte	TEMP
+00EA3C  2               ; Monitor
+00EA3C  2  80           	.byte	reg_pbx
+00EA3D  2  81           	.byte	reg_pcx
+00EA3E  2  83           	.byte	reg_srx
+00EA3F  2  84           	.byte	reg_ax
+00EA40  2  86           	.byte	reg_xx
+00EA41  2  88           	.byte	reg_yx
+00EA42  2  8A           	.byte	reg_spx
+00EA43  2  8C           	.byte	reg_dpx
+00EA44  2  8E           	.byte	reg_dbx
+00EA45  2  8F           	.byte	addra
+00EA46  2  92           	.byte	addrb
+00EA47  2  95           	.byte	faca
+00EA48  2  99           	.byte	facax
+00EA49  2  9D           	.byte	facb
+00EA4A  2  A3           	.byte	facc
+00EA4B  2  A9           	.byte	operand
+00EA4C  2  AC           	.byte	auxbufindex
+00EA4D  2  AD           	.byte	ibufidx
+00EA4E  2  AE           	.byte	bitsdig
+00EA4F  2  AF           	.byte	numeral
+00EA50  2  B0           	.byte	radix
+00EA51  2  B1           	.byte	admodidx
+00EA52  2  B2           	.byte	charcnt
+00EA53  2  B4           	.byte	instsize
+00EA54  2  B6           	.byte	mnepck
+00EA55  2  B8           	.byte	opcode
+00EA56  2  B9           	.byte	status
+00EA57  2  BA           	.byte	xrtemp
+00EA58  2  BB           	.byte	eopsize
+00EA59  2  BC           	.byte	flimflag
+00EA5A  2  BD           	.byte	vecbrkia
+00EA5B  2  BF           	.byte	iopsize
+00EA5C  2  C0           	.byte	range
+00EA5D  2  C1           	.byte	vopsflag
+00EA5E  2  95           	.byte	mcftwork
+00EA5F  2  96           	.byte	mcftopc
+00EA60  2  97           	.byte	mcftbnk
+00EA61  2  00 02        	.word	ibuffer
+00EA63  2  46 02        	.word	auxbuf
+00EA65  2               ; (g)LCD specific
+00EA65  2               ;	.word	dpy_data_buf
+00EA65  2               ;	.byte	dpy_data_size
+00EA65  2               ;	.word	dpy_data_max
+00EA65  2               ;
+00EA65  2               ; System wide vectors
+00EA65  2  DC 02        	.word	VECTOR_BRK
+00EA67  2  D4 02        	.word	VECTOR_NMI
+00EA69  2  D8 02        	.word	VECTOR_INT
+00EA6B  2  D0 02        	.word	VECTOR_RES
+00EA6D  2  E2 02        	.word	VECTOR_CHAR_IN
+00EA6F  2  E4 02        	.word	VECTOR_CHAR_SCAN
+00EA71  2  E0 02        	.word	VECTOR_CHAR_OUT
+00EA73  2               ;---------------------------------------
+00EA73  2               ; Used to calculate memory footprint of module
+00EA73  2               ;---------------------------------------
+00EA73  2               _mon_end = *
+00EA73  2               _mon_size = _mon_end - SYSMONITOR
+00EA73  2               	.out .concat("Supermon816                       $", .sprintf("%04x", SYSMONITOR), "      $", .sprintf("%04x", _mon_end), "    $", .sprintf("%04x", _mon_size), "  (", .sprintf("%05d", _mon_size), ")")
+00EA73  2               ;	.out .concat("-- Size of Monitor:	            $", .sprintf("%04x", _mon_size), " (", .sprintf("%05d", _mon_size), ")")
+00EA73  2               
+00EA73  2               
+00EA73  1               
+00EA73  1               ; Interrupt Service Routines
+00EA73  1               _incl_isr:
+00EA73  1  00 00 00 00  	.res		ISR - *, $00
+00EA77  1  00 00 00 00  
+00EA7B  1  00 00 00 00  
+00EA7F  1  00 00 00 00  
+00EA83  1  00 00 00 00  
+00EA87  1  00 00 00 00  
+00EA8B  1  00 00 00 00  
+00EA8F  1  00 00 00 00  
+00EA93  1  00 00 00 00  
+00EA97  1  00 00 00 00  
+00EA9B  1  00 00 00 00  
+00EA9F  1  00 00 00 00  
+00EAA3  1  00 00 00 00  
+00EAA7  1  00 00 00 00  
+00EAAB  1  00 00 00 00  
+00EAAF  1  00 00 00 00  
+00EAB3  1  00 00 00 00  
+00EAB7  1  00 00 00 00  
+00EABB  1  00 00 00 00  
+00EABF  1  00 00 00 00  
+00EAC3  1  00 00 00 00  
+00EAC7  1  00 00 00 00  
+00EACB  1  00 00 00 00  
+00EACF  1  00 00 00 00  
+00EAD3  1  00 00 00 00  
+00EAD7  1  00 00 00 00  
+00EADB  1  00 00 00 00  
+00EADF  1  00 00 00 00  
+00EAE3  1  00 00 00 00  
+00EAE7  1  00 00 00 00  
+00EAEB  1  00 00 00 00  
+00EAEF  1  00 00 00 00  
+00EAF3  1  00 00 00 00  
+00EAF7  1  00 00 00 00  
+00EAFB  1  00 00 00 00  
+00EAFF  1  00 00 00 00  
+00EB03  1  00 00 00 00  
+00EB07  1  00 00 00 00  
+00EB0B  1  00 00 00 00  
+00EB0F  1  00 00 00 00  
+00EB13  1  00 00 00 00  
+00EB17  1  00 00 00 00  
+00EB1B  1  00 00 00 00  
+00EB1F  1  00 00 00 00  
+00EB23  1  00 00 00 00  
+00EB27  1  00 00 00 00  
+00EB2B  1  00 00 00 00  
+00EB2F  1  00 00 00 00  
+00EB33  1  00 00 00 00  
+00EB37  1  00 00 00 00  
+00EB3B  1  00 00 00 00  
+00EB3F  1  00 00 00 00  
+00EB43  1  00 00 00 00  
+00EB47  1  00 00 00 00  
+00EB4B  1  00 00 00 00  
+00EB4F  1  00 00 00 00  
+00EB53  1  00 00 00 00  
+00EB57  1  00 00 00 00  
+00EB5B  1  00 00 00 00  
+00EB5F  1  00 00 00 00  
+00EB63  1  00 00 00 00  
+00EB67  1  00 00 00 00  
+00EB6B  1  00 00 00 00  
+00EB6F  1  00 00 00     
 00FC00  1               	.include	"ROM/isr.asm"
 00FC00  2               ;===============================================================================
 00FC00  2               ;   A D R I A   - Interrupt handler(s)
@@ -8302,11 +8308,10 @@ Current file: main.asm
 00FC8D  2               ;---------------------------------------
 00FC8D  2               ; Used to calculate memory footprint of the module
 00FC8D  2               ;---------------------------------------
-00FC8D  2               ISR_END		= *			; Must be declared before any
+00FC8D  2               _isr_end	= *			; Must be declared before any
 00FC8D  2               					; calculations
-00FC8D  2               ISR_SIZE	= ISR_END - ISR
-00FC8D  2               	.out .concat("Interrupt Service Routine(s)      $", .sprintf("%04x", ISR), "      $", .sprintf("%04x", ISR_END), "    $", .sprintf("%04x", ISR_SIZE), "  (", .sprintf("%05d", ISR_SIZE), ")")
-00FC8D  2               ;	.out .concat("---- Size of ISR uploader:                 $", .sprintf("%04x", ISR_SIZE), " (", .sprintf("%5d", ISR_SIZE), ")")
+00FC8D  2               _isr_size	= _isr_end - ISR
+00FC8D  2               	.out .concat("Interrupt Service Routine(s)      $", .sprintf("%04x", ISR), "      $", .sprintf("%04x", _isr_end), "    $", .sprintf("%04x", _isr_size), "  (", .sprintf("%05d", _isr_size), ")")
 00FC8D  2               
 00FC8D  1               
 00FC8D  1               ; Fixed jump tables (not functional (yet?)
@@ -8763,4 +8768,20 @@ Current file: main.asm
 010000  2               ;=======================================================================
 010000  2               
 010000  1               
+010000  1               _space_io	= UART_DRIVER - $c800
+010000  1               _space_uart	= HEXINTEL - _uart_end
+010000  1               _space_intel	= SYSMONITOR - _intel_end
+010000  1               _space_mon	= ISR - _mon_end
+010000  1               _space_isr	= RESET_ROUTINES - _isr_end
+010000  1               
+010000  1               	.out .concat("-------------------------------------------------------------------------------------------------- ")
+010000  1               	.out .concat("Space free I/O                 : ", .sprintf("%04x", _space_io))
+010000  1               	.out .concat("Space free UART                : ", .sprintf("%04x", _space_uart))
+010000  1               	.out .concat("Space free Intel Hex Uploader  : ", .sprintf("%04x", _space_intel))
+010000  1               	.out .concat("Space free Supermon816         : ", .sprintf("%04x", _space_mon))
+010000  1               	.out .concat("Space free ISR                 : ", .sprintf("%04x", _space_isr))
+010000  1               	.out .concat("                                 --------")
+010000  1               	.out .concat("                                 ", .sprintf("%04x", _space_io + _space_uart + _space_intel + _space_mon + _space_isr), " (", .sprintf("%05d", _space_uart + _space_intel + _space_mon + _space_isr) ,")")
+010000  1               
+010000  1               ;=======================================================================
 010000  1               
