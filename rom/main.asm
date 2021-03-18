@@ -9,6 +9,10 @@
 ;			  stack, before actually printing char. When 
 ;			  returned, we reset the register widths and
 ;			  retrieve the .Y
+;	18 mar 2021	- Reordered memory map
+;			  - stack for Supermon816 moved to top of RAM, 8kByte?
+;			  - reference for hwstack moved to global.asm
+;			  - moved UART buffers down in memory
 ;
 ;
 ; BEFORE USAGE, SET THE CORRECT OSCILLATOR CLOCK SPEED IN "global.asm"

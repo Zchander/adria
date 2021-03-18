@@ -5,6 +5,10 @@
 ;	05 Jan 2021	- Initial version
 ;	08 feb 2021	- Some minor changes to interrupt handlers
 ;	25 feb 2021	- Consolidate ZP usage (try to make it one block)
+;	18 mar 2021	- Reordered memory map
+;			  - stack for Supermon816 moved to top of RAM, 8kByte?
+;			  - reference for hwstack moved to global.asm
+;			  - moved UART buffers down in memory
 ;=======================================================================
 ; Assembly related variables (for conditional assembly)
 ;---------------------------------------
@@ -19,7 +23,7 @@ SYSCLK		=	OSCCLK / 4	; Clock speed of PHI2
 	.byte	'.'
 	.byte	'1'			; Minor
 	.byte	'.'
-	.byte	'3'			; Revision
+	.byte	'4'			; Revision
 	.endmacro
 	
 	.macro	longi			; Set .X and .Y to 16-bit
@@ -120,7 +124,11 @@ s_bi_byte	= 8			; Byte			(8 bits)
 _equations:
 zero_page	= $80			; We use ZP/DP $80-$FF for monitor
 kbdbuffer	= $0200			; We want to create a 127 byte buffer?
-stack		= $0100			; Default stack in native mode
+stack		= $0100			; Default stack in emulation mode
+;
+hwstack		= $BFFF			; Hardware stack in native mode
+ram_top		= $9FFF			; Top of free RAM (giving 8 kByte of 
+					; stack?)
                
 ;---------------------------------------
 ; Zero Page/Direct Page usage

@@ -10,6 +10,9 @@
 ;				  ROM based driver
 ;		25 feb 2021	- Consolidate ZP usage (try to make it one 
 ;				  block)
+;		18 mar 2021	- Reordered memory map
+;				  - stack for Supermon816 moved to top of RAM, 8kByte?
+;				  - Moved UART buffers down in memory
 ;===============================================================================
 ; GENERIC
 ;=======================================
@@ -159,7 +162,7 @@ n_reg_9x	= 8			; Number of registers per channel
 n_tot_reg_9x	= n_chan_9x * n_reg_9x	; Total number of registers
 ;
 nx_q_size	= s_rampage / 2		; Size of a ring buffer (127)
-nx_q_base	= $2000			; For now we define our queues at $2000
+nx_q_base	= $0800			; For now we define our queues at $0800
 nx_rx_qa	= nx_q_base		; RxD queue channel A
 nx_tx_qa	= nx_rx_qa + nx_q_size	; TxD queue channel A
 nx_rx_qb	= nx_tx_qa + nx_q_size	; RxD queue channel B

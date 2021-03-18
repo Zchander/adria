@@ -168,6 +168,7 @@
 ;				   $21, but should be #32
 ;				B) line 4244 - Forgot to branch when stopkey was
 ;				   found
+;  1.0.4	18 mar 2021	A) Moved hwstack reference to global.asm (ROM)
 ;------------------------------------------------------------------------------
 ;
 ;
@@ -303,7 +304,7 @@ vecbrki  	= VECTOR_BRK           ;BRK handler indirect vector...
 ;	------------------------------------------------------------------------
 ;
 ;	------------------------------------------------------------------------
-hwstack  	= $7fff                ;top of hardware stack...
+;hwstack  	= $7fff                ;top of hardware stack...
 ;
 ;	Supermon 816 initializes the stack pointer to this address when the cold
 ;	start at MONCOLD is called to enter the monitor.  The stack pointer will

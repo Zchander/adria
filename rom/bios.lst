@@ -13,6 +13,10 @@ Current file: main.asm
 000000r 1               ;			  stack, before actually printing char. When
 000000r 1               ;			  returned, we reset the register widths and
 000000r 1               ;			  retrieve the .Y
+000000r 1               ;	18 mar 2021	- Reordered memory map
+000000r 1               ;			  - stack for Supermon816 moved to top of RAM, 8kByte?
+000000r 1               ;			  - reference for hwstack moved to global.asm
+000000r 1               ;			  - moved UART buffers down in memory
 000000r 1               ;
 000000r 1               ;
 000000r 1               ; BEFORE USAGE, SET THE CORRECT OSCILLATOR CLOCK SPEED IN "global.asm"
@@ -52,6 +56,10 @@ Current file: main.asm
 00C000  2               ;	05 Jan 2021	- Initial version
 00C000  2               ;	08 feb 2021	- Some minor changes to interrupt handlers
 00C000  2               ;	25 feb 2021	- Consolidate ZP usage (try to make it one block)
+00C000  2               ;	18 mar 2021	- Reordered memory map
+00C000  2               ;			  - stack for Supermon816 moved to top of RAM, 8kByte?
+00C000  2               ;			  - reference for hwstack moved to global.asm
+00C000  2               ;			  - moved UART buffers down in memory
 00C000  2               ;=======================================================================
 00C000  2               ; Assembly related variables (for conditional assembly)
 00C000  2               ;---------------------------------------
@@ -66,7 +74,7 @@ Current file: main.asm
 00C000  2               	.byte	'.'
 00C000  2               	.byte	'1'			; Minor
 00C000  2               	.byte	'.'
-00C000  2               	.byte	'3'			; Revision
+00C000  2               	.byte	'4'			; Revision
 00C000  2               	.endmacro
 00C000  2               
 00C000  2               	.macro	longi			; Set .X and .Y to 16-bit
@@ -167,7 +175,11 @@ Current file: main.asm
 00C000  2               _equations:
 00C000  2               zero_page	= $80			; We use ZP/DP $80-$FF for monitor
 00C000  2               kbdbuffer	= $0200			; We want to create a 127 byte buffer?
-00C000  2               stack		= $0100			; Default stack in native mode
+00C000  2               stack		= $0100			; Default stack in emulation mode
+00C000  2               ;
+00C000  2               hwstack		= $BFFF			; Hardware stack in native mode
+00C000  2               ram_top		= $9FFF			; Top of free RAM (giving 8 kByte of
+00C000  2               					; stack?)
 00C000  2               
 00C000  2               ;---------------------------------------
 00C000  2               ; Zero Page/Direct Page usage
@@ -1237,6 +1249,9 @@ Current file: main.asm
 00CD00  3               ;				  ROM based driver
 00CD00  3               ;		25 feb 2021	- Consolidate ZP usage (try to make it one
 00CD00  3               ;				  block)
+00CD00  3               ;		18 mar 2021	- Reordered memory map
+00CD00  3               ;				  - stack for Supermon816 moved to top of RAM, 8kByte?
+00CD00  3               ;				  - Moved UART buffers down in memory
 00CD00  3               ;===============================================================================
 00CD00  3               ; GENERIC
 00CD00  3               ;=======================================
@@ -1386,7 +1401,7 @@ Current file: main.asm
 00CD00  3               n_tot_reg_9x	= n_chan_9x * n_reg_9x	; Total number of registers
 00CD00  3               ;
 00CD00  3               nx_q_size	= s_rampage / 2		; Size of a ring buffer (127)
-00CD00  3               nx_q_base	= $2000			; For now we define our queues at $2000
+00CD00  3               nx_q_base	= $0800			; For now we define our queues at $0800
 00CD00  3               nx_rx_qa	= nx_q_base		; RxD queue channel A
 00CD00  3               nx_tx_qa	= nx_rx_qa + nx_q_size	; TxD queue channel A
 00CD00  3               nx_rx_qb	= nx_tx_qa + nx_q_size	; RxD queue channel B
@@ -1664,7 +1679,7 @@ Current file: main.asm
 00CD0C  3  EC 67 00     	cpx	nx_rx_put_a		; Compare with RxD "put" index
 00CD0F  3  F0 0F        	beq	@no_datum		; No datum available
 00CD11  3               ;
-00CD11  3  BD 00 20     	lda	nx_rx_qa, X		; Get datum from queue
+00CD11  3  BD 00 08     	lda	nx_rx_qa, X		; Get datum from queue
 00CD14  3  EB           	xba				; Move .A to .B
 00CD15  3  AD 65 00     	lda	nx_rx_get_a		; Get "get" index
 00CD18  3  1A           	inc	a			; bump "get" index
@@ -1706,7 +1721,7 @@ Current file: main.asm
 00CD32  3               ;	bra	@try
 00CD32  3               ;
 00CD32  3               @datum:
-00CD32  3  BD 00 20     	lda	nx_rx_qa, X
+00CD32  3  BD 00 08     	lda	nx_rx_qa, X
 00CD35  3  EB           	xba				; Save datum to .B
 00CD36  3  AD 65 00     	lda	nx_rx_get_a		; Get current "get" index
 00CD39  3  1A           	inc	a			; Bump index
@@ -1735,7 +1750,7 @@ Current file: main.asm
 00CD4E  3  EC 6B 00     	cpx	nx_rx_put_b		; Compare with RxD "put" index
 00CD51  3  F0 07        	beq	@no_datum		; No datum available
 00CD53  3               ;
-00CD53  3  BD 00 21     	lda	nx_rx_qb, X		; Get datum from queue
+00CD53  3  BD 00 09     	lda	nx_rx_qb, X		; Get datum from queue
 00CD56  3  EE 69 00     	inc	nx_rx_get_b		; Increment "get" index
 00CD59  3  18           	clc				; Clear error (carry)
 00CD5A  3               ;
@@ -1781,7 +1796,7 @@ Current file: main.asm
 00CD73  3               ;
 00CD73  3  AE 68 00     	ldx	nx_tx_put_a
 00CD76  3  EB           	xba				; Restore datum in .A, save new "put"
-00CD77  3  9D 80 20     	sta	nx_tx_qa, X		; Put datum into TxQ
+00CD77  3  9D 80 08     	sta	nx_tx_qa, X		; Put datum into TxQ
 00CD7A  3  EB           	xba				; Retrieve new "put" index from .B
 00CD7B  3  8D 68 00     	sta	nx_tx_put_a
 00CD7E  3               ;
@@ -1841,7 +1856,7 @@ Current file: main.asm
 00CDA6  3               ;
 00CDA6  3  AE 6C 00     	ldx	nx_tx_put_b
 00CDA9  3  EB           	xba				; Restore datum in .A, save new "put"
-00CDAA  3  9D 80 21     	sta	nx_tx_qb, X		; Put datum into TxQ
+00CDAA  3  9D 80 09     	sta	nx_tx_qb, X		; Put datum into TxQ
 00CDAD  3  EB           	xba				; Retrieve new "put" index from .B
 00CDAE  3  8D 6C 00     	sta	nx_tx_put_b
 00CDB1  3               ;
@@ -1938,7 +1953,7 @@ Current file: main.asm
 00CDE1  3  C2 10        	longi				; We use 16-bit index registers
 00CDE3  3  A2 00 00     	ldx	#$0000
 00CDE6  3               @nextBuf:
-00CDE6  3  9E 00 20     	stz	nx_q_base, X		; Clear buffer space with $00
+00CDE6  3  9E 00 08     	stz	nx_q_base, X		; Clear buffer space with $00
 00CDE9  3  E8           	inx
 00CDEA  3  E0 00 02     	cpx	#$0200			; 4 * $80
 00CDED  3  D0 F7        	bne	@nextBuf
@@ -2764,6 +2779,7 @@ Current file: main.asm
 00D800  2               ;				   $21, but should be #32
 00D800  2               ;				B) line 4244 - Forgot to branch when stopkey was
 00D800  2               ;				   found
+00D800  2               ;  1.0.4	18 mar 2021	A) Moved hwstack reference to global.asm (ROM)
 00D800  2               ;------------------------------------------------------------------------------
 00D800  2               ;
 00D800  2               ;
@@ -2899,7 +2915,7 @@ Current file: main.asm
 00D800  2               ;	------------------------------------------------------------------------
 00D800  2               ;
 00D800  2               ;	------------------------------------------------------------------------
-00D800  2               hwstack  	= $7fff                ;top of hardware stack...
+00D800  2               ;hwstack  	= $7fff                ;top of hardware stack...
 00D800  2               ;
 00D800  2               ;	Supermon 816 initializes the stack pointer to this address when the cold
 00D800  2               ;	start at MONCOLD is called to enter the monitor.  The stack pointer will
@@ -3392,7 +3408,7 @@ Current file: main.asm
 00D823  2               
 00D823  2  C2 20        	longa				; 16-bit .A
 00D825  2               
-00D825  2  A9 FF 7F     	lda	#hwstack		; Top of hardware stack
+00D825  2  A9 FF BF     	lda	#hwstack		; Top of hardware stack
 00D828  2  1B           	tcs				; Set up SP (Stack Pointer)
 00D829  2  7B           	tdc				; Get DP (Direct Page) pointer
 00D82A  2  85 8C        	sta	reg_dpx			; ... and save
@@ -7769,7 +7785,7 @@ Current file: main.asm
 00E7F1  2  72 20 41 64  
 00E7F5  2  72 69 61 20  
 00E7F9  2  30 2E 31 2E  	bios_version
-00E7FD  2  33           
+00E7FD  2  34           
 00E7FE  2  29 0D 0A 00  	.byte 	")", CR, LF, $00
 00E802  2               
 00E802  2               mm_err:
@@ -8210,7 +8226,7 @@ Current file: main.asm
 00FC41  2               ; data stream. This should not happen is the frontend gets from RxQ in time
 00FC41  2               ;-----------------------
 00FC41  2  CA           	dex				; Realign RxD "put" index
-00FC42  2  9D 00 20     	sta	nx_rx_qa, X		; Store datum into RxQ
+00FC42  2  9D 00 08     	sta	nx_rx_qa, X		; Store datum into RxQ
 00FC45  2               ;
 00FC45  2  8A           	txa
 00FC46  2  1A           	inc	a			; Increment RxD "put" index
@@ -8252,7 +8268,7 @@ Current file: main.asm
 00FC63  2               ; Later on, when the THR's level has been reduced, another IRQ will occur and
 00FC63  2               ; more datums can be processed
 00FC63  2               ;-----------------------
-00FC63  2  BD 80 20     	lda	nx_tx_qa, X		; Get datum from queue and ...
+00FC63  2  BD 80 08     	lda	nx_tx_qa, X		; Get datum from queue and ...
 00FC66  2  8D 23 C0     	sta	NX_IOBASE + dr_txfifoa	; ... write to THR (FIFO)
 00FC69  2  8A           	txa				; Move .X to .A
 00FC6A  2  1A           	inc	a			; Increment "get" index
@@ -8696,7 +8712,7 @@ Current file: main.asm
 00FF4C  2  69 6F 6E 3A  
 00FF50  2  20           
 00FF51  2  30 2E 31 2E  	bios_version
-00FF55  2  33           
+00FF55  2  34           
 00FF56  2  20 2D 20 58  	.byte	" - Xander Maas, 2021", LF, CR
 00FF5A  2  61 6E 64 65  
 00FF5E  2  72 20 4D 61  
